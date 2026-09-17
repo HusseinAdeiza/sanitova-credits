@@ -33,7 +33,7 @@ Run only against development data. Tests leave local ledger/database records. Ex
 - [ ] Confirm registration, current organizer requirements, deadlines, network eligibility and submission fields directly with organizers.
 - [ ] Complete a clean-machine install using only documented prerequisites; capture any missing steps. Do not erase the current development ledger to simulate this.
 - [ ] Record the narrated workflow and review it for secrets, readable evidence and accurate local-network labeling.
-- [ ] Publish or package the source as required, with credential/artifact review; no repository has been initialized or uploaded by this documentation pass.
+- [x] Source published at https://github.com/HusseinAdeiza/sanitova-credits (public, commit 8ec95a8, Sept 17 2026) after credential/artifact review; keep pushing changes as work continues.
 - [ ] Verify the final video/source URLs and upload attachments; no submission has been sent.
 - [ ] Obtain partner feedback or explicitly state that customer validation is pending.
 
