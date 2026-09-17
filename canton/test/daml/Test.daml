@@ -1,0 +1,82 @@
+module Test where
+
+import Main
+import Daml.Script hiding (Created)
+
+setup : Text -> Script (ContractId ComplianceAsset)
+setup runId = script do
+  issuer <- allocatePartyByHint (PartyIdHint ("SanitovaIssuer-" <> runId))
+  holder <- allocatePartyByHint (PartyIdHint ("SanitovaHolder-" <> runId))
+  inspector <- allocatePartyByHint (PartyIdHint ("SanitovaInspector-" <> runId))
+  regulator <- allocatePartyByHint (PartyIdHint ("SanitovaRegulator-" <> runId))
+  cid <- submit issuer do
+    createCmd ComplianceAsset with
+      issuer; holder = issuer; inspector; regulator
+      assetId = "ledger-proof-001"
+      title = "Sanitova compliance ledger proof"
+      status = Created
+  verified <- submit inspector do
+    exerciseCmd cid UpdateStatus with newStatus = Verified
+  proposal <- submit issuer do
+    exerciseCmd verified ProposeTransfer with newHolder = holder
+  transferred <- submit holder do
+    exerciseCmd proposal AcceptTransfer
+  Some result <- queryContractId regulator transferred
+  assert (result.holder == holder)
+  assert (result.status == Verified)
+  pure transferred
+
+permissions : Text -> Script ()
+permissions runId = script do
+  issuer <- allocatePartyByHint (PartyIdHint ("PermissionIssuer-" <> runId))
+  holder <- allocatePartyByHint (PartyIdHint ("PermissionHolder-" <> runId))
+  inspector <- allocatePartyByHint (PartyIdHint ("PermissionInspector-" <> runId))
+  regulator <- allocatePartyByHint (PartyIdHint ("PermissionRegulator-" <> runId))
+  outsider <- allocatePartyByHint (PartyIdHint ("UnrelatedParty-" <> runId))
+  cid <- submit issuer do
+    createCmd ComplianceAsset with
+      issuer; holder = issuer; inspector; regulator
+      assetId = "permission-check"
+      title = "Permission checks"
+      status = Created
+  hidden <- queryContractId outsider cid
+  assert (hidden == None)
+  submitMustFail regulator do
+    exerciseCmd cid UpdateStatus with newStatus = Verified
+  verified <- submit inspector do
+    exerciseCmd cid UpdateStatus with newStatus = Verified
+  submitMustFail issuer do
+    exerciseCmd verified UpdateStatus with newStatus = Suspended
+  proposal <- submit issuer do
+    exerciseCmd verified ProposeTransfer with newHolder = holder
+  submitMustFail regulator do
+    exerciseCmd proposal AcceptTransfer
+  transferred <- submit holder do
+    exerciseCmd proposal AcceptTransfer
+  submitMustFail holder do
+    exerciseCmd proposal AcceptTransfer
+  Some result <- queryContractId regulator transferred
+  assert (result.holder == holder)
+  assert (result.status == Verified)
+
+cancelTransfer : Text -> Script ()
+cancelTransfer runId = script do
+  issuer <- allocatePartyByHint (PartyIdHint ("CancelIssuer-" <> runId))
+  recipient <- allocatePartyByHint (PartyIdHint ("CancelRecipient-" <> runId))
+  inspector <- allocatePartyByHint (PartyIdHint ("CancelInspector-" <> runId))
+  regulator <- allocatePartyByHint (PartyIdHint ("CancelRegulator-" <> runId))
+  cid <- submit issuer do
+    createCmd ComplianceAsset with
+      issuer; holder = issuer; inspector; regulator
+      assetId = "cancel-check"
+      title = "Cancellation check"
+      status = Created
+  proposal <- submit issuer do
+    exerciseCmd cid ProposeTransfer with newHolder = recipient
+  restored <- submit issuer do
+    exerciseCmd proposal CancelTransfer
+  Some result <- queryContractId issuer restored
+  assert (result.holder == issuer)
+  submitMustFail recipient do
+    exerciseCmd proposal AcceptTransfer
+

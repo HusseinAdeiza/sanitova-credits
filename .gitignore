@@ -1,0 +1,45 @@
+# Dependencies and generated builds
+node_modules/
+dist/
+build/
+coverage/
+test-results/
+playwright-report/
+.daml/
+__pycache__/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.npmrc
+credentials*.json
+secrets*.json
+
+# Downloaded toolchains and local runtime state
+/tools/
+/daml-release.json
+/dpm-release.json
+/canton/*-result.json
+/canton/*-results.json
+/canton/test-run-id.json
+/canton/local-app-parties.json
+/canton/sandbox-ports.json
+log/
+logs/
+*.log
+*.db
+*.sqlite*
+*.mv.db
+*.trace.db
+*.pid
+
+# Editor and OS state
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

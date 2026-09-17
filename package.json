@@ -1,0 +1,27 @@
+{
+  "name": "sanitovacredits",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd frontend && npm install",
+    "db:init": "node backend/src/db/init.js",
+    "db:seed": "node backend/scripts/seed.js",
+    "start:api": "node backend/src/index.js",
+    "dev:api": "nodemon backend/src/index.js",
+    "start:frontend": "npm run dev --prefix frontend",
+    "start:all": "node backend/src/index.js & npm run dev --prefix frontend"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "uuid": "^11.0.3",
+    "pg": "^8.12.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
