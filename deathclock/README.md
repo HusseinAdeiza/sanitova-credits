@@ -12,6 +12,7 @@ DeathClock ──CPI──▶ verifier_router ──selector 73c457ba──▶ g
 
 - Verified heartbeat transaction `5ngg4ghZrVjemXhr2fZ6GJ2i31w5nm3ow7S1CHaAy9n4YKDADdDwhABB5QYSGsfXFwzopZZZc585KnqgdeSMSkqN`, confirmed against a local validator running Solana 1.18.26. It is not on a public cluster. The three programs *are* deployed on devnet (see below), but the proof path is not, so there is deliberately no public explorer link here.
 - Tamper case: the same receipt with a modified journal is **rejected**.
+- Live on devnet: vault [`GdqwHKfJ7wgNSGJ53J7mrA986Tg1UefUK9Y3btzX7Btt`](https://explorer.solana.com/address/GdqwHKfJ7wgNSGJ53J7mrA986Tg1UefUK9Y3btzX7Btt?cluster=devnet) — 0.4 SOL deposited, two heirs at 60/40, created and funded by `npm run e2e:devnet`. Reproduce with `npm run verify:live-vault`, which decodes it through the same path the deployed site uses.
 
 ## The problem
 
