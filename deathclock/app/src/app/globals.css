@@ -39,7 +39,11 @@
     --c-acid: 149 190 60; /* verified on-chain state only */
     --c-acid-soft: 233 243 208;
 
-    --c-positive: 45 122 84;
+    /* Darkened from 45 122 84 so the "verified on devnet" pill clears WCAG AA
+       at 11px. The pill paints itself at 10% alpha over the paper, which lifts
+       the background toward the text colour and drags the measured ratio down:
+       4.35:1 as text-on-paper reads fine, but it is what is actually painted. */
+    --c-positive: 40 110 76;
     --c-critical: 190 44 44;
     --c-warning: 166 106 12;
 
