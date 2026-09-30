@@ -44,7 +44,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --owner) OWNER_HEX="$2"; shift 2 ;;
     --timestamp) TIMESTAMP="$2"; TIMESTAMP_OVERRIDE="$2"; shift 2 ;;
-    --nonce) NONCE_HEX="$2"; shift 2 ;;
+    --nonce) NONCE_HEX="$2"; NONCE_OVERRIDE="$2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -118,7 +118,15 @@ if [[ -z "${TIMESTAMP_OVERRIDE:-}" ]]; then
 else
   TIMESTAMP="$TIMESTAMP_OVERRIDE"
 fi
-NONCE_HEX="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+# Same rule for the nonce: honour an explicit --nonce. A caller that needs to
+# know the nonce in advance (the proving service records it on the job, then
+# checks the journal commits to it) was silently given a different one here,
+# and its verification failed against a perfectly valid seal.
+if [[ -z "${NONCE_OVERRIDE:-}" ]]; then
+  NONCE_HEX="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+else
+  NONCE_HEX="$NONCE_OVERRIDE"
+fi
 in_container phase1 "$TIMESTAMP"
 
 echo

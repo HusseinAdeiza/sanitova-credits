@@ -200,7 +200,14 @@ ever received lamports can never become a program account.
 
 1. **Not audited.** The security model is reasoned, not third-party reviewed.
 2. **Proving takes 4-5 minutes, and the freshness window is 300 seconds.** The program accepts a receipt up to 300s old and 60s in the future, so the seal is proven for a forward-shifted timestamp and the two must be issued as one flow. `npm run heartbeat:devnet` does this, deriving the offset from measured proving times. In production this is what a proving service exists to absorb -- the browser cannot do it, which is limitation 3.
-3. **The browser cannot produce proofs.** A Groth16 proof needs the RISC Zero prover, which is a multi-GB Docker pipeline. The frontend constructs and hashes the public journal but stops before submission without a real receipt. A live demo needs a proving service.
+3. **The browser cannot produce proofs; a service does.** A Groth16 proof needs the RISC Zero prover, a multi-GB Docker pipeline that takes 4-5 minutes. `scripts/prover-service.ts` is that service: it takes an owner, proves, and returns a genuine seal. Verified on devnet -- a seal it produced is accepted on-chain:
+
+   ```
+   POST /prove {"owner":"<64 hex>"}   ->  202 { jobId }
+   GET  /prove/:jobId                 ->  { status: "ready", seal: {...} }
+   ```
+
+   The frontend still has no wiring to it, and the service runs on one machine with a local Docker pipeline -- it is not a hosted, multi-tenant prover. Until the browser can call it, a live demo still needs a seal pasted in by hand.
 4. **The oracle design is experimental.** Death confirmation is currently a function of the challenge period elapsing unchallenged, not an independent death attestation.
 5. **Release moves lamports directly**, not from a PDA-owned token account. Native SOL works; a tokenised estate would need rework.
 6. **The freshness window is tight by design.** 300 seconds is the space between proving and submitting. It is a real operational constraint, not a formality.
