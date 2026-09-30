@@ -46,3 +46,6 @@ Thumbs.db
 
 # Working notes kept out of the public repository
 /Local_only/
+
+# DeathClock lives in its own repository (github.com/HusseinAdeiza/deathclock)
+deathclock/

@@ -1,8 +1,0 @@
-[package]
-name = "ownable"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-anchor-lang = { version = "0.32.2", features = ["init-if-needed" ] }
-ownable-macro = { version = "0.1.0", path = "../ownable-macro" }
