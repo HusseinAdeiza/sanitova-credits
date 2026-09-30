@@ -115,7 +115,11 @@ export function DeathClockApp() {
               />
 
               <div className="space-y-4">
-                <HeartbeatPanel onSubmit={onHeartbeat} disabled={!connected || vault.busy} />
+                <HeartbeatPanel
+                  onSubmit={onHeartbeat}
+                  ownerKey={vault.owner}
+                  disabled={!connected || vault.busy}
+                />
 
                 {connected && installed.length === 0 ? (
                   <div className="panel p-5">

@@ -99,6 +99,13 @@ export function useVault(owner: string | null, walletProvider: any) {
     loading,
     busy,
     message,
+    /**
+     * The connected wallet's address. The HeartbeatPanel needs it because the
+     * proving service must be told which owner to prove for -- the seal's
+     * journal commits to the vault owner, so a proof for anyone else is
+     * rejected by the program.
+     */
+    owner: ownerKey ? ownerKey.toBase58() : null,
     /** Lets the UI report its own validation errors through the same channel. */
     setMessage,
     /** Last confirmed signature, so a caller can link to it on Explorer. */

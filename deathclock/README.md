@@ -207,7 +207,9 @@ ever received lamports can never become a program account.
    GET  /prove/:jobId                 ->  { status: "ready", seal: {...} }
    ```
 
-   The frontend still has no wiring to it, and the service runs on one machine with a local Docker pipeline -- it is not a hosted, multi-tenant prover. Until the browser can call it, a live demo still needs a seal pasted in by hand.
+   The frontend is wired to it: set `NEXT_PUBLIC_PROVER_URL` and the panel's "Request a proof" button asks for a seal, polls, and submits it on arrival. With the variable unset the panel says so and falls back to pasting, rather than showing a button that cannot work.
+
+   Two honest limits remain. The service runs on one machine with a local Docker pipeline -- it is not a hosted, multi-tenant prover -- and a request occupies it for 4-5 minutes, so it serves one proof at a time. Neither is a problem for a demo; both matter for production.
 4. **The oracle design is experimental.** Death confirmation is currently a function of the challenge period elapsing unchallenged, not an independent death attestation.
 5. **Release moves lamports directly**, not from a PDA-owned token account. Native SOL works; a tokenised estate would need rework.
 6. **The freshness window is tight by design.** 300 seconds is the space between proving and submitting. It is a real operational constraint, not a formality.
