@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check:base58": "tsx scripts/check-base58.ts",
+    "check:provider": "tsx scripts/check-provider-unwrap.ts",
+    "check:prover-client": "tsx scripts/check-prover-client.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
