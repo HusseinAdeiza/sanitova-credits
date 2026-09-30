@@ -19,9 +19,21 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-ROUTER_PROGRAM_ID="2CYCBtLHLrd13S9AvvZ73SS691bfzNM7uQoayRtmeFT3"
-GROTH16_VERIFIER_PROGRAM_ID="Cct3GAKER29JFHJTMgcgNkiGTzza9y4sEdBceiuRfBGj"
-DEATHCLOCK_PROGRAM_ID="BF1Y36xBRoQVB7z3gi5rSnciAHwbn5yMn8ToSnZ8Woo"
+# Single source of truth: scripts/program-ids.ts. These must match the
+# declare_id! constants compiled into the binaries.
+read_ids() {
+  local out
+  out="$(ROUTER_PROGRAM_ID=x npx tsx -e '
+    const ids = require("./scripts/program-ids");
+    console.log([ids.ROUTER_PROGRAM_ID, ids.GROTH16_VERIFIER_PROGRAM_ID,
+                 ids.DEATHCLOCK_PROGRAM_ID, ids.ROUTER_STATE].join(" "));
+  ')" || { echo "could not read scripts/program-ids.ts" >&2; exit 1; }
+  ROUTER_PROGRAM_ID="$(echo "$out" | cut -d' ' -f1)"
+  GROTH16_VERIFIER_PROGRAM_ID="$(echo "$out" | cut -d' ' -f2)"
+  DEATHCLOCK_PROGRAM_ID="$(echo "$out" | cut -d' ' -f3)"
+  ROUTER_STATE="$(echo "$out" | cut -d' ' -f4)"
+}
+read_ids
 DEATHCLOCK_AUTHORITY="86ab21NszLjrmiipVvWfwoKmhJQ7Drpn5w5TxDnXvWKv"
 SELECTOR="73c457ba"
 # The vendored groth_16_verifier uses the legacy alt_bn128_pairing syscall,
@@ -32,7 +44,6 @@ VALIDATOR_IMAGE="${VALIDATOR_IMAGE:-solanalabs/solana:v1.18.26}"
 # add_verifier requires the verifier program's LoaderV3 upgrade authority to
 # already be the router PDA, so it is baked in at genesis via the third
 # --upgradeable-program argument rather than transferred afterwards.
-ROUTER_STATE="62PvmsCfYiaytGSR6tT9sxJrW1WMhxNrPMN6DVx3SeB6"
 
 # Set DEATHCLOCK_RPC to an already-running validator (e.g. the VPS) to skip
 # starting one locally. The local path is flaky: the validator is OOM-killed by

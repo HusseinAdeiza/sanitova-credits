@@ -3,7 +3,7 @@ use anchor_lang::system_program;
 use sha2::{Digest, Sha256};
 use verifier_router::{cpi::accounts::Verify as RouterVerify, program::VerifierRouter, Seal};
 
-declare_id!("BF1Y36xBRoQVB7z3gi5rSnciAHwbn5yMn8ToSnZ8Woo");
+declare_id!("C8unxtjoDZWy2GmwHUPuSve1BHT5TtRKpNaDofbMS5Vh");
 
 pub const HEARTBEAT_PROOF_TAG: &[u8] = b"DEATHCLOCK_RISC0_V1";
 /// Image ID of the pinned `deathclock-zk-guest` RISC Zero ELF, as emitted by

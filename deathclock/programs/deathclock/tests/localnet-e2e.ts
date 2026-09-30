@@ -19,9 +19,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { Deathclock } from "../../../target/types/deathclock";
 
-const ROUTER_PROGRAM_ID = new PublicKey("2CYCBtLHLrd13S9AvvZ73SS691bfzNM7uQoayRtmeFT3");
-const GROTH16_VERIFIER_PROGRAM_ID = new PublicKey("Cct3GAKER29JFHJTMgcgNkiGTzza9y4sEdBceiuRfBGj");
-const SELECTOR = [0x73, 0xc4, 0x57, 0xba];
+import {
+  ROUTER_PROGRAM_ID,
+  GROTH16_VERIFIER_PROGRAM_ID,
+  SELECTOR,
+} from "../../../scripts/program-ids";
 
 const OWNER_KEYPAIR = "target/localnet-e2e-owner.json";
 const WORK_DIR = "target/risc0-work";

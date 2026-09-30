@@ -9,10 +9,10 @@ skip-lint = false
 deathclock = "BF1Y36xBRoQVB7z3gi5rSnciAHwbn5yMn8ToSnZ8Woo"
 
 [programs.devnet]
-deathclock = "BF1Y36xBRoQVB7z3gi5rSnciAHwbn5yMn8ToSnZ8Woo"
+deathclock = "C8unxtjoDZWy2GmwHUPuSve1BHT5TtRKpNaDofbMS5Vh"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

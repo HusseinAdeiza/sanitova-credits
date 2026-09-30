@@ -31,7 +31,7 @@ pub use vk::{VerificationKey, VERIFICATION_KEY};
 
 // Localnet address; the original official ID (THq1qFYQoh7zgcjXoMXduDBqiZRCPeg3PvvMbrVQUge)
 // is replaced so the binary matches a locally generated deploy keypair.
-declare_id!("Cct3GAKER29JFHJTMgcgNkiGTzza9y4sEdBceiuRfBGj");
+declare_id!("2iPoTWMXWJ6inLnBeGEZyiKkwEzaQvCX24Cp82UcWm8K");
 
 include!(concat!(env!("OUT_DIR"), "/control_ids.rs"));
 

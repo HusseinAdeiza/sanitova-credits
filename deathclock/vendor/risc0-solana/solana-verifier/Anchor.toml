@@ -8,20 +8,24 @@ skip-lint = false
 # type into the IDL.
 idl-build = ["verifier_router/idl-build", "groth_16_verifier/idl-build"]
 
+# These must match the declare_id! literals in each program's src/lib.rs.
+# Anchor's [programs.*] section OVERRIDES declare_id! at build time, so an
+# entry left at the upstream value silently compiles the old ID into the
+# binary even after the Rust source is edited. Keep these in sync with
+# scripts/program-ids.ts.
 [programs.localnet]
 groth_16_verifier = "THq1qFYQoh7zgcjXoMXduDBqiZRCPeg3PvvMbrVQUge"
-# test_bad_verifier is a fixture for the upstream test suite. It takes
-# groth_16_verifier::Proof without propagating the idl-build feature, so it
-# breaks `anchor build` for the whole workspace with
-# "no associated function insert_types". DeathClock does not use it, so it is
-# not listed as a build target.
 verifier_router = "6JvFfBrvCcWgANKh1Eae9xDq4RC6cfJuBcf71rp2k9Y7"
+
+[programs.devnet]
+groth_16_verifier = "2iPoTWMXWJ6inLnBeGEZyiKkwEzaQvCX24Cp82UcWm8K"
+verifier_router = "5n8zx79RUHafwSSB4vRU5ao9atHzJQHTdJR9ty8YrVte"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

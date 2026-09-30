@@ -31,7 +31,7 @@ use state::*;
 
 // Localnet address; the original official ID (6JvFfBrvCcWgANKh1Eae9xDq4RC6cfJuBcf71rp2k9Y7)
 // is replaced so the binary matches a locally generated deploy keypair.
-declare_id!("2CYCBtLHLrd13S9AvvZ73SS691bfzNM7uQoayRtmeFT3");
+declare_id!("5n8zx79RUHafwSSB4vRU5ao9atHzJQHTdJR9ty8YrVte");
 
 include!(concat!(env!("OUT_DIR"), "/initial_owner.rs"));
 

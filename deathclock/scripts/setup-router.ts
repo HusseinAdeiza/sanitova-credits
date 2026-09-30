@@ -14,9 +14,14 @@ import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 // Point at the VPS validator through an SSH tunnel:
 //   ssh -L 8899:127.0.0.1:8899 root@161.97.139.15
 const RPC = process.env.DEATHCLOCK_RPC ?? "http://127.0.0.1:8899";
-const ROUTER_PROGRAM_ID = new PublicKey("2CYCBtLHLrd13S9AvvZ73SS691bfzNM7uQoayRtmeFT3");
-const GROTH16_PROGRAM_ID = new PublicKey("Cct3GAKER29JFHJTMgcgNkiGTzza9y4sEdBceiuRfBGj");
-const SELECTOR = [0x73, 0xc4, 0x57, 0xba];
+const {
+  ROUTER_PROGRAM_ID: _ROUTER,
+  GROTH16_VERIFIER_PROGRAM_ID: _GROTH,
+  SELECTOR: _SELECTOR,
+} = require("./program-ids");
+const ROUTER_PROGRAM_ID = new PublicKey(_ROUTER);
+const GROTH16_PROGRAM_ID = new PublicKey(_GROTH);
+const SELECTOR = _SELECTOR;
 
 const IDL_PATH = "vendor/risc0-solana/solana-verifier/target/idl/verifier_router.json";
 const WALLET = process.env.HOME + "/.config/solana/id.json";
