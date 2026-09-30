@@ -59,9 +59,26 @@ async function main() {
   console.log(`router state   ${routerState.toBase58()}`);
   console.log(`verifier entry ${verifierEntry.toBase58()}`);
 
-  const sig = await connection.requestAirdrop(authority.publicKey, 10 * 1_000_000_000);
-  const bh = await connection.getLatestBlockhash("confirmed");
-  await connection.confirmTransaction({ signature: sig, ...bh }, "confirmed");
+  // Only top up if we are actually short. `requestAirdrop` is heavily
+  // rate-limited on devnet and throws on failure, so never call it
+  // speculatively -- check the balance first.
+  const lamports = (await connection.getBalance(authority.publicKey)).lamports;
+  const MIN_AUTHORITY_LAMPORTS = 0.5 * 1_000_000_000;
+  if (lamports < MIN_AUTHORITY_LAMPORTS) {
+    console.log(
+      `authority balance ${lamports / 1e9} SOL is below ${MIN_AUTHORITY_LAMPORTS / 1e9}: requesting an airdrop`,
+    );
+    const sig = await connection.requestAirdrop(
+      authority.publicKey,
+      MIN_AUTHORITY_LAMPORTS - lamports + 1_000_000,
+    );
+    const bh = await connection.getLatestBlockhash("confirmed");
+    await connection.confirmTransaction({ signature: sig, ...bh }, "confirmed");
+  } else {
+    console.log(
+      `authority balance ${lamports / 1e9} SOL, enough for rent and fees`,
+    );
+  }
 
   // 1. initialize the router
   if (await connection.getAccountInfo(routerState)) {
