@@ -25,6 +25,7 @@ export function useVault(owner: string | null, walletProvider: any) {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [lastSignature, setLastSignature] = useState<string | null>(null);
   const ownerKey = useMemo(() => owner ? new PublicKey(owner) : null, [owner]);
   const provider = useMemo(() => {
     if (!ownerKey || !walletProvider) return null;
@@ -54,7 +55,23 @@ export function useVault(owner: string | null, walletProvider: any) {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  async function run<T>(operation: () => Promise<T>) { setBusy(true); setMessage(null); try { const result = await operation(); await refresh(); return result; } catch (error) { setMessage(error instanceof Error ? error.message : "Transaction failed."); throw error; } finally { setBusy(false); } }
+  async function run<T>(operation: () => Promise<T>) {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await operation();
+      // Anchor's .rpc() resolves to a signature string; capture it so the UI
+      // can link the confirmed transaction to Explorer.
+      if (typeof result === "string") setLastSignature(result);
+      await refresh();
+      return result;
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Transaction failed.");
+      throw error;
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function initializeVault(heirs: Heir[]) { if (!program || !ownerKey) throw new Error("Connect a wallet first."); const keys = heirs.map((heir) => new PublicKey(heir.address)); const shares = heirs.map((heir) => heir.share); return run(() => program.methods.initializeVault(keys, Buffer.from(shares), new BN(HEARTBEAT_INTERVAL), new BN(CHALLENGE_PERIOD)).accounts({ owner: ownerKey }).rpc()); }
   async function deposit(sol: number) { if (!program || !ownerKey || !vault) throw new Error("Connect a wallet first."); return run(() => program.methods.deposit(new BN(Math.round(sol * 1_000_000_000))).accounts({ owner: ownerKey, vault } as any).rpc()); }
@@ -77,5 +94,22 @@ export function useVault(owner: string | null, walletProvider: any) {
   async function resolveChallenge(isAlive: boolean) { if (!program || !vault) throw new Error("Connect a wallet first."); return run(() => program.methods.resolveChallenge(isAlive).accounts({ vault } as any).rpc()); }
   async function releaseInheritance() { if (!program || !vault || !snapshot) throw new Error("Connect a wallet first."); const [treasury, treasuryBump] = PublicKey.findProgramAddressSync([Buffer.from("treasury")], programId); return run(() => program.methods.releaseInheritance(treasuryBump).accounts({ vault, treasury, systemProgram: SystemProgram.programId } as any).remainingAccounts(snapshot.heirs.map((heir) => ({ pubkey: new PublicKey(heir.address), isSigner: false, isWritable: true }))).rpc()); }
 
-  return { snapshot, loading, busy, message, refresh, initializeVault, deposit, heartbeat, reportDeath, initiateChallenge, resolveChallenge, releaseInheritance };
+  return {
+    snapshot,
+    loading,
+    busy,
+    message,
+    /** Lets the UI report its own validation errors through the same channel. */
+    setMessage,
+    /** Last confirmed signature, so a caller can link to it on Explorer. */
+    lastSignature,
+    refresh,
+    initializeVault,
+    deposit,
+    heartbeat,
+    reportDeath,
+    initiateChallenge,
+    resolveChallenge,
+    releaseInheritance,
+  };
 }

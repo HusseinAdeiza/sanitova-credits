@@ -1,17 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { usePhantom } from "@/hooks/usePhantom";
+import { useWallet } from "@/hooks/useWallet";
 import { useVault } from "@/hooks/useVault";
-import { VaultCard } from "./VaultCard";
-import { HeirManager } from "./HeirManager";
-import { HeartbeatButton } from "./HeartbeatButton";
-import { InheritanceStatus } from "./InheritanceStatus";
 import type { Heir, HeartbeatPayload, VaultSnapshot } from "@/types";
-import { explorerLink } from "@/utils/constants";
+import { FEE_BPS } from "@/utils/constants";
+import { Container, Section, SectionHeader, Pill, Footnote } from "@/components/ui";
+import { SiteHeader, SiteFooter } from "@/components/SiteChrome";
+import { Hero } from "@/components/Hero";
+import { ProofSection } from "@/components/ProofSection";
+import { FeatureBento, ClosingCta } from "@/components/FeatureBento";
+import { StateWalkthrough } from "@/components/StateWalkthrough";
+import { VaultConsole } from "@/components/VaultConsole";
+import { HeartbeatPanel } from "@/components/HeartbeatPanel";
 
-const demo: VaultSnapshot = {
-  address: "Awaiting wallet connection",
+/** Rendered before a wallet connects, so the console is never empty. */
+const PLACEHOLDER: VaultSnapshot = {
+  address: "—",
   initialized: false,
   state: "active",
   balanceSol: 0,
@@ -19,24 +24,152 @@ const demo: VaultSnapshot = {
   lastHeartbeat: 0,
   deathReportedAt: 0,
   challengeStartedAt: 0,
-  heartbeatInterval: 2592000,
-  challengePeriod: 172800,
+  heartbeatInterval: 30 * 24 * 60 * 60,
+  challengePeriod: 48 * 60 * 60,
   heirs: [],
 };
 
 export function DeathClockApp() {
-  const { publicKey, connected, connect, provider } = usePhantom();
-  const { snapshot, loading, busy, message, initializeVault, deposit, heartbeat, reportDeath, initiateChallenge, resolveChallenge, releaseInheritance, refresh } = useVault(publicKey, provider);
+  const { connected, signer, connect, installed } = useWallet();
+  const vault = useVault(signer?.publicKey ?? null, signer);
   const [heirs, setHeirs] = useState<Heir[]>([]);
-  const [notice, setNotice] = useState("Connect your wallet to inspect or create a vault.");
-  const [lastSignature, setLastSignature] = useState<string | null>(null);
-  const active = snapshot || { ...demo, heirs };
-  const isDemo = !snapshot;
-  const run = async (label: string, operation: () => Promise<unknown>) => { try { const result = await operation(); if (typeof result === "string") setLastSignature(result); setNotice(`${label} confirmed on Solana.`); return result; } catch (error) { setNotice(error instanceof Error ? error.message : `${label} failed.`); } };
-  const onHeartbeat = async (payload: HeartbeatPayload) => { await run("Heartbeat", () => heartbeat(payload)); };
-  const onCreate = async () => { if (heirs.length === 0 || heirs.reduce((sum, heir) => sum + heir.share, 0) !== 100) { setNotice("Add heirs whose shares total 100% before creating the vault."); return; } await run("Vault creation", () => initializeVault(heirs)); };
-  const onDeposit = async () => { const amount = Number(window.prompt("How much SOL would you like to deposit?", "1")); if (Number.isFinite(amount) && amount > 0) await run("Deposit", () => deposit(amount)); };
-  const status = snapshot ? { ...snapshot, heirs: snapshot.heirs.length ? snapshot.heirs : heirs } : active;
 
-  return <main className="min-h-screen overflow-hidden bg-paper"><div className="pointer-events-none fixed inset-0 opacity-50" style={{ backgroundImage: "linear-gradient(rgba(13,16,23,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(13,16,23,.045) 1px, transparent 1px)", backgroundSize: "40px 40px" }} /><div className="relative mx-auto max-w-7xl px-5 py-6 sm:px-8 sm:py-10"><header className="flex items-center justify-between border-b border-ink/10 pb-6"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-ember text-lg font-bold text-white">◒</span><div><p className="font-display text-xl leading-none">DeathClock</p><p className="label mt-1">Your will, on-chain.</p></div></div><button className="button-quiet" onClick={connected ? refresh : connect}>{connected ? `${publicKey?.slice(0, 5)}…${publicKey?.slice(-4)}` : "Connect Phantom"}</button></header><section className="grid gap-12 py-14 lg:grid-cols-[1.15fr_.85fr] lg:items-end"><div><p className="label text-ember">Crypto inheritance / protocol 001</p><h1 className="mt-5 max-w-4xl font-display text-6xl leading-[.9] tracking-[-0.05em] sm:text-8xl">Love outlives your <em className="text-ember">last block.</em></h1><p className="mt-7 max-w-xl text-lg leading-8 text-ink/65">A trustless Solana vault that releases your estate to the people you choose—after a verifiable heartbeat goes quiet.</p><div className="mt-8 flex flex-wrap gap-3"><button className="button-primary" onClick={onCreate} disabled={busy || (isDemo && !connected)}>Create a vault <span className="ml-2">↗</span></button><button className="button-quiet" onClick={() => setNotice("Deposit SOL, then send a monthly heartbeat. A missed proof starts the 48-hour challenge window.")}>How it works</button></div></div><div className="hidden justify-self-end text-right lg:block"><p className="font-display text-8xl leading-none text-ink/10">48h</p><p className="label mt-2">challenge window</p></div></section><section className="grid gap-5"><VaultCard snapshot={status} onDeposit={onDeposit} disabled={busy || !connected} /><div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]"><HeirManager heirs={heirs} onChange={setHeirs} /><InheritanceStatus snapshot={status} busy={busy} onReportDeath={() => run("Death report", reportDeath)} onInitiateChallenge={() => run("Challenge", initiateChallenge)} onResolveChallenge={(alive) => run(alive ? "Recovery" : "Challenge resolution", () => resolveChallenge(alive))} onRelease={() => run("Inheritance release", releaseInheritance)} /></div></section><footer className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-ink/10 py-6 text-xs text-ink/50"><p>{loading ? "Syncing vault state…" : message || notice}{lastSignature && <a className="ml-2 underline" href={explorerLink("tx", lastSignature)} target="_blank" rel="noreferrer">View transaction ↗</a>}</p><HeartbeatButton onSubmit={onHeartbeat} disabled={busy || !connected} /></footer></div></main>;
+  const snapshot = vault.snapshot ?? PLACEHOLDER;
+
+  /**
+   * Wraps a vault action with a confirmation message. `useVault` already
+   * surfaces the underlying error text through `message` and rethrows, so
+   * failures are not re-wrapped here — only the success case is added.
+   */
+  const run = async (label: string, operation: () => Promise<unknown>) => {
+    try {
+      await operation();
+      vault.setMessage(`${label} confirmed on Solana.`);
+    } catch {
+      // useVault has already recorded the reason; leave it to stand.
+    }
+  };
+
+  const onCreate = async () => {
+    const total = heirs.reduce((sum, heir) => sum + heir.share, 0);
+    if (heirs.length === 0 || total !== 100) {
+      vault.setMessage("Assign shares totalling exactly 100% before creating the vault.");
+      return;
+    }
+    await run("Vault creation", () => vault.initializeVault(heirs));
+  };
+
+  const onDeposit = async () => {
+    const raw = window.prompt("How much SOL would you like to deposit?", "1");
+    if (raw === null) return;
+    const amount = Number(raw);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      vault.setMessage("Enter a positive SOL amount.");
+      return;
+    }
+    await run("Deposit", () => vault.deposit(amount));
+  };
+
+  const onHeartbeat = async (payload: HeartbeatPayload) => {
+    await run("Heartbeat", () => vault.heartbeat(payload));
+  };
+
+  return (
+    <div className="min-h-screen bg-canvas">
+      <SiteHeader />
+
+      <main>
+        <Hero />
+        <ProofSection />
+        <FeatureBento />
+        <StateWalkthrough />
+
+        {/* The live product. Everything above is explanation; this is the app. */}
+        <Section id="vault">
+          <Container>
+            <SectionHeader
+              eyebrow="Live vault"
+              title="Create and fund a real vault."
+              lede="These controls call the deployed Anchor program. Every transaction signs in your wallet and lands on devnet — nothing here is simulated."
+            />
+
+            <div className="mt-10 grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+              <VaultConsole
+                snapshot={snapshot}
+                connected={connected}
+                busy={vault.busy}
+                heirs={heirs}
+                onHeirsChange={setHeirs}
+                onCreate={onCreate}
+                onDeposit={onDeposit}
+                onReportDeath={() => run("Death report", vault.reportDeath)}
+                onInitiateChallenge={() => run("Challenge", vault.initiateChallenge)}
+                onResolveChallenge={(alive) =>
+                  run(alive ? "Recovery" : "Challenge resolution", () =>
+                    vault.resolveChallenge(alive),
+                  )
+                }
+                onRelease={() => run("Inheritance release", vault.releaseInheritance)}
+                notice={vault.loading && !vault.message ? "Syncing vault state…" : vault.message}
+                lastSignature={vault.lastSignature}
+              />
+
+              <div className="space-y-4">
+                <HeartbeatPanel onSubmit={onHeartbeat} disabled={!connected || vault.busy} />
+
+                {connected && installed.length === 0 ? (
+                  <div className="panel p-5">
+                    <Pill tone="warn">Wallet unavailable</Pill>
+                    <p className="pretty mt-3 text-sm leading-relaxed text-muted">
+                      The wallet stopped responding after connecting. Reconnect from the header to
+                      continue.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm mt-4"
+                      onClick={() => void connect("phantom")}
+                    >
+                      Reconnect
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className="panel p-5">
+                  <p className="label">What happens on release</p>
+                  <ol className="mt-3 space-y-2.5 text-sm leading-relaxed text-muted">
+                    <li>
+                      <span className="font-medium text-ink">1.</span> The estate balance is read
+                      from the vault account, not from an off-chain record.
+                    </li>
+                    <li>
+                      <span className="font-medium text-ink">2.</span> The {FEE_BPS / 100}% fee
+                      moves to the protocol treasury PDA.
+                    </li>
+                    <li>
+                      <span className="font-medium text-ink">3.</span> The remainder is split by
+                      the shares stored at creation, in integer lamports.
+                    </li>
+                    <li>
+                      <span className="font-medium text-ink">4.</span> State moves to{" "}
+                      <span className="font-mono text-xs">Released</span>, which has no exit.
+                    </li>
+                  </ol>
+                  <div className="mt-4">
+                    <Footnote>
+                      Release currently moves lamports held by the vault account directly. Moving to
+                      a PDA-owned token account is tracked as follow-up work.
+                    </Footnote>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Container>
+        </Section>
+
+        <ClosingCta />
+      </main>
+
+      <SiteFooter />
+    </div>
+  );
 }
