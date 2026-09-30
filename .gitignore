@@ -43,3 +43,6 @@ logs/
 Thumbs.db
 .vscode/
 .idea/
+
+# Working notes kept out of the public repository
+/Local_only/

@@ -1,6 +1,6 @@
 # SanitovaCredits — Canton demo and recording script
 
-**Target:** 5–7 minutes. Use synthetic demonstration titles only. Recording not yet produced.
+**Target:** 5–7 minutes. Use synthetic demonstration titles only.
 
 ## Preparation
 
@@ -36,7 +36,6 @@ Optional extra minute: issue a separate asset, propose to Bob, save/clear the pr
 - Issuance, inspection, proposal and acceptance contract/update references.
 - Bob's explicit consent and the final holder.
 - David's records screen with checkpoint freshness and ledger events.
-- Raw test output saved alongside the submission, clearly distinguished from the recording.
 
 For proposal events, the current audit UI may fall back to a contract ID where a nested title is not resolved. Create/archive events are not a full business-action narrative or evidence of inspection truth.
 
@@ -46,4 +45,4 @@ If a write returns an unknown outcome, stop that scenario and reconcile its comm
 
 ## Before publishing
 
-Watch the entire recording; verify readable IDs, visible consent, no credentials/personal data, no unexplained cuts around failed writes, and accurate local-network labeling. Confirm the organizer's video duration, format and submission fields before uploading. No upload or submission is authorized by this document.
+Watch the entire recording; verify readable IDs, visible consent, no credentials or personal data, no unexplained cuts around failed writes, and accurate local-network labeling. Check the organizer's video duration and format requirements before uploading.

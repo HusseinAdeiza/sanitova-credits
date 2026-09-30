@@ -21,9 +21,25 @@ The explicit local launcher maps the existing active Alice issuer, Clara inspect
 
 The launcher now also maps Bob's active holder account. Recipient party IDs and acting parties come from server configuration, never browser input. Proposing consumes the asset contract and locks inspection until acceptance or issuer cancellation. To withdraw a pending proposal, Alice opens **Canton Transfers**, saves/clears any previous receipt, refreshes the inbox, checks **I confirm withdrawal of this proposal**, and clicks **Cancel proposal**. Cancellation restores the previous holder and asset data under a new contract ID; it cannot undo an already accepted transfer. Save the replacement receipt before closing the tab.
 
-These operations remain independent of the older PostgreSQL asset screens. A separate durable PostgreSQL projection worker is now available; see [PROJECTION.md](PROJECTION.md). The Canton Records screen exposes active contracts and party-scoped create/archive events. The older Audit Trail and dashboard remain database-only. There is no inspection inbox yet. Transfer inboxes query the actual ledger with party-scoped filters and snapshot pagination. Pending/confirmed transfer receipts survive a reload within the tab; uncertain submissions are not automatically retried. Receipts are not proof of current state forever; later updates can replace their contracts.
+These operations are independent of the older PostgreSQL asset screens, which
+still run against `compliance_assets` and remain separate from the ledger. A
+durable PostgreSQL projection worker is documented in
+[PROJECTION.md](PROJECTION.md), and the Canton Records screen reads active
+contracts plus party-scoped create/archive events from it. The older Audit
+Trail and dashboard screens are database-only.
 
-Transfer checks: `node --test backend/scripts/ledger-transfer-test.js` and, from frontend, `npx playwright test tests/ledger-transfer.spec.js --workers=1`. The transfer browser test uses server-generated authentication fixtures for existing Alice/Bob accounts, the running API, and real ledger writes; it does not test password login. Other browser tests cover real login. Tests leave development contracts behind.
+Transfer inboxes query the ledger directly with party-scoped filters and
+snapshot pagination. Pending and confirmed transfer receipts survive a reload
+within the tab, but an uncertain submission is never retried automatically,
+and a receipt reflects the moment it was issued rather than current state —
+later updates replace their contracts.
+
+Transfer checks: `node --test backend/scripts/ledger-transfer-test.js` and,
+from `frontend/`, `npx playwright test tests/ledger-transfer.spec.js
+--workers=1`. The transfer browser test signs in with server-generated
+fixtures for the existing Alice and Bob accounts and performs real ledger
+writes; password login is covered by the other browser tests. Test runs leave
+development contracts behind.
 
 ## Verification
 

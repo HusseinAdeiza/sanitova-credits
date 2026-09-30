@@ -13,32 +13,47 @@ Build SanitovaCredits as a maintained compliance product, not a disposable hacka
 - Keyboard-accessible asset links and labeled creation fields.
 - Search empty state without a runtime crash; retry after asset-fetch failures.
 - Cancelled obsolete filter requests; creation controls disabled during loading and successful submission.
-- Client-side title and metadata validation (not a replacement for server validation).
+- Client-side title and metadata validation, which does not replace server-side validation.
 - Browser coverage for create/transfer/verify/read, mobile navigation, empty search, and network recovery.
+- Canton issuance, inspector status updates, transfer proposal, recipient acceptance, issuer cancellation, and party-scoped contract/event screens.
+- A checkpointed PostgreSQL projection over committed ledger updates, with replay-safe archive/create evidence.
 
-## Release blockers — do not deploy publicly yet
+## Release blockers
 
-1. **Identity and authorization:** replace self-selected privileged registration roles with reviewed invitations; establish organization membership and assignment rules. Enforce consistent record-level scope on every detail/event/update path, not just list views. Review account revocation and session expiry handling.
-2. **Write integrity:** make asset changes and audit/history writes one database transaction; handle concurrent edits and repeated submissions safely. Enforce field-level permissions and validation on the server. Define valid status transitions and approval policy with domain owners.
-3. **Deployment configuration:** require production secrets, remove development credentials from public surfaces, use HTTPS, explicit allowed origins, appropriate request limits, and a supported authentication/session strategy. Isolate sample data from customer databases.
-4. **Operations:** versioned migrations, tested backup/restore, database readiness checks, graceful shutdown, structured redacted logs, monitoring and alerts, and repeatable deployment/rollback.
-5. **Testing and scale:** isolated test database with disposable fixtures; pagination and bounded export design; CI for frontend build, API regression checks, and browser tests; accessibility and cross-browser checks. Current smoke/browser tests leave records in the local database.
-6. **Compliance and ledger claims:** document retention, data ownership, inspection evidence, audit access, and legal requirements. PostgreSQL events are not immutable ledger records. Local Canton integration and a durable projection are implemented. Public-network deployment, production participant authentication, legal acceptance and write-command recovery remain unverified or incomplete.
+Not for public deployment yet.
 
-## Next implementation slice
+1. **Identity and authorization.** Replace self-selected privileged registration roles with reviewed invitations, and establish organization membership and assignment rules. Enforce consistent record-level scope on every detail, event, and update path, not only on list views. Review account revocation and session expiry.
+2. **Write integrity.** Make asset changes and audit/history writes a single database transaction, and handle concurrent edits and repeated submissions safely. Enforce field-level permissions and validation on the server. Define valid status transitions and the approval policy with domain owners.
+3. **Deployment configuration.** Require production secrets, remove development credentials from any public surface, use HTTPS with explicit allowed origins and request limits, and settle on a supported authentication and session strategy. Keep sample data isolated from customer databases.
+4. **Operations.** Versioned migrations, tested backup and restore, database readiness checks, graceful shutdown, structured redacted logs, monitoring and alerts, and a repeatable deployment and rollback path.
+5. **Testing and scale.** An isolated test database with disposable fixtures; pagination and bounded export design; CI covering the frontend build, API regression checks, and browser tests; accessibility and cross-browser checks. Current smoke and browser tests leave records in the local database.
+6. **Compliance and ledger claims.** Document retention, data ownership, inspection evidence, audit access, and legal requirements. PostgreSQL events are not immutable ledger records. Public-network deployment, production participant authentication, legal acceptance, and write-command recovery remain unverified or incomplete.
 
-Prioritize server-side access boundaries and transactional asset/audit writes before adding more presentation features. Follow with organization onboarding and deployment safeguards. Keep completed and unimplemented capabilities explicitly separated in the README and product UI.
+## Next slice
 
-## Current local verification
+Prioritize server-side access boundaries and transactional asset/audit writes
+ahead of any further presentation features. Then organization onboarding and
+deployment safeguards. Completed and unimplemented capabilities stay
+explicitly separated in the README and in the product UI.
+
+## Local verification
 
 Run the API and frontend first, then from the project root:
 
 ```bash
 node backend/scripts/smoke-test.js
 node --test backend/scripts/workflow-test.js
+node --test backend/scripts/ledger-issuance-test.js
+node --test backend/scripts/ledger-transfer-test.js
+node --test --test-timeout=15000 backend/scripts/ledger-projection-test.js
+node --test backend/scripts/ledger-records-test.js
 npm run build --prefix frontend
 cd frontend
-npx playwright test tests/workflow.spec.js --workers=1
+npx playwright test tests/workflow.spec.js tests/ledger-ui.spec.js tests/ledger-live.spec.js tests/ledger-transfer.spec.js tests/ledger-records.spec.js --workers=1
 ```
 
-These checks validate local behavior only. They do not certify security, regulatory compliance, backups, or production operations.
+The ledger suites need the Canton sandbox and the local launcher running; see
+[canton/README.md](canton/README.md) and
+[canton/LIVE_WORKFLOW.md](canton/LIVE_WORKFLOW.md). These checks cover local
+behavior only. They do not certify security, regulatory compliance, backups,
+or production operations.

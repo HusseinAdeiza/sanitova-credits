@@ -6,7 +6,7 @@ The web application supports local Canton issuance, inspection, recipient-accept
 
 For the ledger-backed workflow, follow [local Canton setup](canton/README.md), [live workflow](canton/LIVE_WORKFLOW.md), and [projection worker setup](canton/PROJECTION.md). Start `node backend/scripts/start-local-canton.js` instead of the plain API, plus `node backend/scripts/sync-canton.js` in a separate terminal. Do not run two APIs on port 4000. The Quick Start below otherwise starts the database-only workflow.
 
-Submission materials: [business brief](BUSINESS_BRIEF.md) · [pilot plan](PILOT_PLAN.md) · [pitch](PITCH.md) · [demo script](DEMO.md) · [checklist](SUBMISSION_CHECKLIST.md). Session verification is not a fresh-machine installation test.
+Background reading: [idea summary](IDEA.md) · [business brief](BUSINESS_BRIEF.md) · [pilot plan](PILOT_PLAN.md) · [demo script](DEMO.md).
 
 SanitovaCredits helps enterprises, inspectors, and regulators issue, update, transfer, and audit
 compliance assets tied to verified sanitation and WASH inspection data.
@@ -118,8 +118,8 @@ sanitovacredits/
 │   │       └── init.js       # Migration runner
 │   ├── scripts/
 │   │   ├── 00_schema.sql     # Full schema
+│   │   ├── 01_canton_projection.sql  # Canton read-model tables
 │   │   └── seed.js           # Demo data seeder
-│   └── .env
 ├── frontend/
 │   ├── src/
 │   │   ├── main.jsx          # React entry
@@ -198,7 +198,14 @@ npx playwright install chromium
 npx playwright test tests/workflow.spec.js --workers=1
 ```
 
-The browser test creates a demo asset and exercises issuer transfer, inspector verification, and regulator read-only history. Smoke/browser tests leave their demo records in the local database. The holder selector loads real active holder accounts rather than placeholder IDs.
+For the ledger-backed workflow, run the Canton suites listed in
+[PRODUCT_READINESS.md](PRODUCT_READINESS.md#local-verification) with the
+sandbox and local launcher up.
+
+The browser test creates a demo asset and exercises issuer transfer, inspector
+verification, and regulator read-only history. Smoke and browser tests leave
+their demo records in the local database. The holder selector loads real
+active holder accounts rather than placeholder IDs.
 
 ## Workflow
 
@@ -257,14 +264,10 @@ and exportable as JSON.
 
 See [DEMO.md](./DEMO.md) for a step-by-step live demo script.
 
-## Pitch Outline
-
-See [PITCH.md](./PITCH.md) for a structured pitch outline.
-
 ## Business Brief
 
-See [BUSINESS_BRIEF.md](./BUSINESS_BRIEF.md) for a 1-page ICP, use case,
-payer, Canton rationale, and pilot plan.
+See [BUSINESS_BRIEF.md](./BUSINESS_BRIEF.md) for the customer profile, use
+case, payer hypothesis, Canton rationale, and proposed pilot.
 
 ---
 

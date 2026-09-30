@@ -61,19 +61,13 @@ The issuer UI now includes **Canton Issuance** at `/ledger-issuance`. It display
 
 `frontend/tests/ledger-ui.spec.js` exercises real browser login, issuance through an isolated Express listener, a real Canton response, receipt persistence across reload, and an unapproved-account rejection. Its browser API requests are forwarded to the real isolated listener, not mocked. Run from `frontend`: `npx playwright test tests/ledger-ui.spec.js --workers=1`. The regular API must be restarted with approved assignments to use this screen outside the test; the screen does not provision parties or enable the backend automatically.
 
-Current limitations: mappings are operator configuration rather than persisted onboarding; no PostgreSQL projection exists yet. Stable command IDs are supplied, but durable idempotency, completion recovery, and duplicate response replay remain unimplemented. Ambiguous failures must be reconciled, not blindly resubmitted.
+Current limitations: mappings are operator configuration rather than persisted onboarding. Stable command IDs are supplied, but durable idempotency, completion recovery, and duplicate response replay remain unimplemented. Ambiguous failures must be reconciled, not blindly resubmitted. The PostgreSQL projection worker is documented in [PROJECTION.md](PROJECTION.md).
 
-## Not yet integrated
+## Application integration status
 
-The React application still uses PostgreSQL for transfers. This contract slice does not synchronize web-app users, asset IDs, or database rows with ledger parties/contracts. No public Canton network deployment has been performed.
+The React application now drives issuance, inspection, transfer proposal, recipient acceptance and issuer cancellation through the ledger adapter, and reads projected contract/event history back through the Canton Records screen. Party assignment stays server-side throughout: the browser sends an asset ID and title, never a party.
 
-Next application slice:
-
-1. Map authenticated application identities to authorized ledger parties.
-2. Submit create/status/transfer commands through a server-side ledger adapter.
-3. Add recipient acceptance to the web workflow (do not impersonate a recipient to auto-accept).
-4. Project committed ledger updates into PostgreSQL with checkpointing, retries, and deduplication; do not treat two independent writes as atomic.
-5. Show ledger contract/transaction references in the UI and test the entire browser-to-ledger path.
+The legacy `compliance_assets` and `asset_events` tables remain a separate read path and are not synchronized with ledger contracts. No public Canton network deployment has been performed.
 
 ## Contract limitations
 
