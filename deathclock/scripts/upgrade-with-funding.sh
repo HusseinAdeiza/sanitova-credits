@@ -2,19 +2,29 @@
 # Retries the devnet airdrop and upgrades the program the moment it succeeds.
 #
 # Why this exists: release_inheritance had a permissionless payout-redirection
-# vulnerability (see commit 92a60e4). The fix is compiled and committed but the
-# upgrade needs ~2.5 SOL and the deploy authority held 1.44, while the devnet
-# faucet rate-limits this IP. The program at C8unxtjo... is still vulnerable
-# until this succeeds, so the retry is the highest-value thing running.
+# vulnerability (commit 92a60e4). The fix is compiled and committed but the
+# upgrade needs ~2.5 SOL and the deploy authority held 1.44, so the program at
+# C8unxtjo... is still vulnerable until this succeeds.
 #
-# Safe to run repeatedly: the deploy is idempotent in the sense that re-running
-# it after success just redeploys the same binary.
+# The first version bounded itself by attempt count (40 tries). That was the
+# wrong shape: the faucet allows 2 airdrops per hour per IP, so the quota is a
+# function of wall-clock time, not of how many times you ask. Forty attempts at
+# 60s is 40 minutes, which ended at almost exactly the moment the hourly window
+# opened -- the script would have quit moments before funding became available
+# and reported failure, when it had merely run out of attempts one window early.
+# It now runs against a deadline, which is the unit the limit is actually
+# measured in.
+#
+# Safe to run repeatedly: re-running after success just redeploys the same
+# binary.
 set -uo pipefail
 
 AUTH="86ab21NszLjrmiipVvWfwoKmhJQ7Drpn5w5TxDnXvWKv"
 PROGRAM="C8unxtjoDZWy2GmwHUPuSve1BHT5TtRKpNaDofbMS5Vh"
 NEEDED_SOL=3.0
-MAX_TRIES=40
+# Spans at least two faucet windows, since a window can open while a request is
+# still in flight.
+RUN_MINUTES=${RUN_MINUTES:-150}
 ROOT=/workspace
 
 balance() {
@@ -25,59 +35,68 @@ funded_enough() {
   python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) >= $NEEDED_SOL else 1)" "$1" 2>/dev/null
 }
 
-echo "[$(date +%H:%M:%S)] starting airdrop retry loop (need ${NEEDED_SOL} SOL for $PROGRAM)"
+stamp() { date -u +%H:%M:%S; }
 
-for attempt in $(seq 1 $MAX_TRIES); do
+start=$(date +%s)
+deadline=$(( start + RUN_MINUTES * 60 ))
+attempt=0
+
+echo "[$(stamp)Z] airdrop loop: need ${NEEDED_SOL} SOL for $PROGRAM, running ${RUN_MINUTES}m"
+
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  attempt=$(( attempt + 1 ))
   current="$(balance)"
-  if [ -z "$current" ]; then
-    echo "[$(date +%H:%M:%S)] attempt $attempt: RPC did not return a balance"
-    sleep 30
-    continue
-  fi
 
-  if funded_enough "$current"; then
-    echo "[$(date +%H:%M:%S)] attempt $attempt: already funded at $current SOL, skipping airdrop"
+  if [ -n "$current" ] && funded_enough "$current"; then
+    echo "[$(stamp)Z] attempt $attempt: already funded at $current SOL"
     break
   fi
 
-  echo "[$(date +%H:%M:%S)] attempt $attempt: balance $current SOL, requesting 2 SOL"
+  if [ -n "$current" ]; then
+    echo "[$(stamp)Z] attempt $attempt: balance $current SOL, requesting 2 SOL"
+  else
+    echo "[$(stamp)Z] attempt $attempt: balance unavailable, requesting 2 SOL"
+  fi
   solana airdrop 2 "$AUTH" --url devnet 2>&1 | tail -1
 
   after="$(balance)"
-  echo "[$(date +%H:%M:%S)]   balance now: ${after:-unknown}"
+  if [ -n "$after" ]; then
+    echo "[$(stamp)Z]   balance now: $after"
+  fi
 
   if funded_enough "$after"; then
-    echo "[$(date +%H:%M:%S)] FUNDED"
+    echo "[$(stamp)Z] FUNDED after $attempt attempt(s)"
     break
   fi
 
-  # Back off up to ~60s: hammering the faucet extends the rate limit.
-  sleep $(( attempt < 10 ? 30 : 60 ))
+  # Never sleep past the deadline.
+  if [ $(( $(date +%s) - start + 60 )) -ge "$deadline" ]; then
+    break
+  fi
+  sleep 60
 done
 
 current="$(balance)"
-echo "[$(date +%H:%M:%S)] final balance: ${current:-unknown} SOL (need ${NEEDED_SOL})"
+echo "[$(stamp)Z] final balance: ${current:-unknown} SOL (need ${NEEDED_SOL})"
 
 if ! funded_enough "$current"; then
-  echo "[$(date +%H:%M:%S)] NOT FUNDED after $MAX_TRIES attempts."
-  echo "The vulnerability fix remains undeployed. Program $PROGRAM is still live."
+  echo "[$(stamp)Z] NOT FUNDED after $attempt attempt(s) / ${RUN_MINUTES}m."
+  echo "The payout fix remains UNDEPLOYED. Program $PROGRAM is still vulnerable."
   exit 1
 fi
 
-echo "[$(date +%H:%M:%S)] deploying the fixed program to $PROGRAM"
+echo "[$(stamp)Z] deploying the fixed program to $PROGRAM"
 out="$(solana program deploy --url devnet \
         --keypair /root/.config/solana/id.json \
         --program-id "$ROOT/target/devnet/deathclock-keypair.json" \
         "$ROOT/target/deploy/deathclock.so" 2>&1)"
-echo "$out" | tail -6
+echo "$out" | tail -8
 
-# The deploy is only complete once the on-chain program data points at the new
-# slot, so confirm via the loader rather than trusting the CLI's exit status.
-if echo "$out" | grep -qiE "Program Id: $PROGRAM|success"; then
-  echo "[$(date +%H:%M:%S)] DEPLOY OK"
+if echo "$out" | grep -qiE "Program Id: $PROGRAM"; then
+  echo "[$(stamp)Z] DEPLOY OK -- confirm the on-chain loader slot before trusting it"
   exit 0
 fi
 
-echo "[$(date +%H:%M:%S)] DEPLOY DID NOT REPORT SUCCESS -- verify by hand"
+echo "[$(stamp)Z] DEPLOY DID NOT REPORT SUCCESS -- verify by hand"
 echo "$out" | tail -20
 exit 1
