@@ -1,0 +1,51 @@
+module Main where
+
+data ComplianceStatus = Created | PendingReview | Verified | Suspended
+  deriving (Eq, Show)
+
+template ComplianceAsset
+  with
+    issuer : Party
+    holder : Party
+    inspector : Party
+    regulator : Party
+    assetId : Text
+    title : Text
+    status : ComplianceStatus
+  where
+    ensure assetId /= "" && title /= ""
+    signatory issuer
+    observer holder, inspector, regulator
+
+    choice UpdateStatus : ContractId ComplianceAsset
+      with
+        newStatus : ComplianceStatus
+      controller inspector
+      do
+        assertMsg "Status must change" (newStatus /= status)
+        create this with status = newStatus
+
+    -- Issuer delegates a transfer proposal; recipient must accept custody.
+    choice ProposeTransfer : ContractId TransferProposal
+      with
+        newHolder : Party
+      controller issuer
+      do
+        assertMsg "Recipient must differ from current holder" (newHolder /= holder)
+        create TransferProposal with asset = this; recipient = newHolder
+
+template TransferProposal
+  with
+    asset : ComplianceAsset
+    recipient : Party
+  where
+    signatory asset.issuer
+    observer asset.holder, asset.inspector, asset.regulator, recipient
+
+    choice AcceptTransfer : ContractId ComplianceAsset
+      controller recipient
+      do create asset with holder = recipient
+
+    choice CancelTransfer : ContractId ComplianceAsset
+      controller asset.issuer
+      do create asset
