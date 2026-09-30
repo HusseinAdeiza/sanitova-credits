@@ -1,0 +1,40 @@
+[toolchain]
+
+[features]
+resolution = true
+skip-lint = false
+# VerifierRouter embeds groth_16_verifier::Proof, so the router's IDL build
+# needs idl-build propagated onto that dependency or Anchor cannot expand the
+# type into the IDL.
+idl-build = ["verifier_router/idl-build", "groth_16_verifier/idl-build"]
+
+[programs.localnet]
+groth_16_verifier = "THq1qFYQoh7zgcjXoMXduDBqiZRCPeg3PvvMbrVQUge"
+# test_bad_verifier is a fixture for the upstream test suite. It takes
+# groth_16_verifier::Proof without propagating the idl-build feature, so it
+# breaks `anchor build` for the whole workspace with
+# "no associated function insert_types". DeathClock does not use it, so it is
+# not listed as a build target.
+verifier_router = "6JvFfBrvCcWgANKh1Eae9xDq4RC6cfJuBcf71rp2k9Y7"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+accept = "yarn run ts-node scripts/acceptOwnership.ts"
+add = "yarn run ts-node scripts/addVerifier.ts"
+client = "yarn run ts-node scripts/codma.ts"
+deploy = "yarn run ts-node scripts/deploy.ts"
+estop = "yarn run ts-node scripts/estop.ts"
+renounce = "yarn run ts-node scripts/renounceOwnership.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+transfer = "yarn run ts-node scripts/transferOwnership.ts"
+
+[test]
+startup_wait = 5000
+shutdown_wait = 2000
+upgradeable = true

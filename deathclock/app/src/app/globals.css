@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: Georgia;
+  --font-sans: Arial;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { background: #f2efe8; }
+body {
+  margin: 0;
+  background: #f2efe8;
+  color: #0d1017;
+  font-family: var(--font-sans), Arial, sans-serif;
+}
+button, input { font: inherit; }
+::selection { background: #c7f36b; color: #0d1017; }
+
+@layer components {
+  .label { @apply text-[10px] font-bold uppercase tracking-[0.22em] text-ink/50; }
+  .hairline { @apply border-ink/15; }
+  .button-primary { @apply rounded-full bg-ink px-5 py-3 text-xs font-bold uppercase tracking-[0.16em] text-paper transition hover:-translate-y-0.5 hover:bg-ember hover:text-white disabled:cursor-not-allowed disabled:opacity-40; }
+  .button-quiet { @apply rounded-full border border-ink/20 px-5 py-3 text-xs font-bold uppercase tracking-[0.16em] transition hover:border-ink hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:opacity-40; }
+  .field { @apply w-full rounded-xl border border-ink/15 bg-white/60 px-4 py-3 text-sm outline-none transition placeholder:text-ink/35 focus:border-ember focus:ring-2 focus:ring-ember/15; }
+}

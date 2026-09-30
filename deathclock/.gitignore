@@ -1,0 +1,7 @@
+target/
+node_modules/
+app/.next/
+.DS_Store
+.env
+.env.*
+*.log
