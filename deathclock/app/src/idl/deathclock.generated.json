@@ -630,6 +630,16 @@
       "code": 6014,
       "name": "ArithmeticOverflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6015,
+      "name": "HeirAccountMismatch",
+      "msg": "Payout account does not match the registered heir"
+    },
+    {
+      "code": 6016,
+      "name": "UnsafePayoutAccount",
+      "msg": "Payout account is not a safe system-owned recipient"
     }
   ],
   "types": [

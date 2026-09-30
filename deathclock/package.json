@@ -12,6 +12,7 @@
     "check:ids": "ts-node --project scripts/tsconfig.json scripts/check-program-ids.ts",
     "e2e:devnet": "tsx scripts/devnet-e2e.ts",
     "verify:live-vault": "tsx scripts/verify-live-vault.ts",
+    "verify:deploy": "tsx scripts/verify-deploy.ts",
     "router:claim": "tsx scripts/claim-verifier-authority.ts",
     "router:setup": "tsx scripts/setup-router.ts",
     "authorities": "tsx scripts/show-authorities.ts",

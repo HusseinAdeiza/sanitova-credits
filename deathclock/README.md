@@ -211,11 +211,15 @@ Fixed in `lib.rs` by binding each payout account to its recorded heir, and by re
 program-owned accounts as recipients -- crediting lamports to a token account looks like a
 payment and pays nothing, because the balance lives in its data.
 
-**The fix is compiled and present in `target/deploy/deathclock.so`, but is NOT deployed.** A
-program upgrade needs roughly 2.5 SOL and the deploy authority held 1.44; devnet airdrops
-were rate-limited throughout the attempt. Until the upgrade lands, the program at
-`C8unxtjoDZWy2GmwHUPuSve1BHT5TtRKpNaDofbMS5Vh` still carries the flaw. Do not put real value
-behind it.
+**The fix is deployed.** Transaction
+`4JXMzpPraVV8gRG3TauJEue3K6ezGVb27dW6PnehXqTN77t4JmFRJPvgf2rgHvnrNCj8gXp6jBVGLnHyGo59sTRe`
+(`err: None`) upgraded the program, and the loader's `last_deployed_slot` is `505959380`,
+matching the finalize transaction's slot -- so the program is running the guarded code rather
+than a deploy that merely reported success. `npm run verify:deploy` prints that state.
+
+Getting there took funding the deploy authority from a second machine: the devnet faucet
+allows two airdrops per hour *per IP*, and the same IP was refused even for a freshly
+generated address, so no amount of retrying or keypair rotation would have helped.
 
 ## Honest limitations
 
