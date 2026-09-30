@@ -60,9 +60,12 @@ sequenceDiagram
   A->>V: initialize and store policy
   D->>A: deposit(10 SOL)
   A->>V: transfer lamports
-  D->>A: heartbeat(mock proof, timestamp, nonce)
-  Note over D,A: Production path: submit RISC Zero receipt
-  A->>A: validate proof and state
+  D->>A: heartbeat(seal, journal_outputs)
+  A->>A: check image ID, journal commitment, freshness
+  A->>R: CPI verify(selector 73c457ba, seal)
+  R->>G: route to groth_16_verifier
+  G->>G: BN254 pairing check
+  G-->>A: verification result
   A->>A: last_heartbeat = now
   Note over A,H: If heartbeat expires, anyone may report death
   A->>A: Active → Missed
@@ -82,4 +85,6 @@ sequenceDiagram
 - `report_death`, `initiate_challenge`, `resolve_challenge`, and `release_inheritance` are permissionless after the state machine permits them.
 - Treasury account input is checked against the canonical `[b"treasury"]` PDA and the supplied bump.
 - The vault rent reserve is excluded from distributable value.
-- The current mock heartbeat tag is not a cryptographic proof and must be replaced before mainnet or production claims.
+- The heartbeat is verified by CPI into the vendored `verifier_router`, which routes by selector `73c457ba` to `groth_16_verifier`, which performs the BN254 pairing check. This is a real RISC Zero Groth16 receipt, verified on-chain; there is no mock path in the program.
+- The receipt is bound to a pinned guest image ID, so a proof from an attacker-chosen zkVM cannot satisfy the heartbeat.
+- Journal validation and the 300-second freshness check run *before* the CPI. Note the ordering when reading errors: an `InvalidProof` at the freshness check does not indicate a pairing failure.
