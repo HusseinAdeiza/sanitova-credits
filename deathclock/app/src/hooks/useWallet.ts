@@ -80,15 +80,33 @@ type Injected = {
   off?(event: string, handler: () => void): void;
 };
 
+/**
+ * Reads an injected provider.
+ *
+ * Every wallet in the catalogue wraps its provider in a namespace object:
+ * `window.phantom.solana`, `window.solflare.solana`, `window.backpack.solana`.
+ * The wrapper itself has no `connect` method, so returning it produced
+ * "s.connect is not a function" -- and, once that was guarded, the misleading
+ * "Phantom was not detected" even though Phantom was plainly present.
+ *
+ * Some builds also expose the provider directly on the key, so unwrap when
+ * there is a `solana` property and use the value either way.
+ */
 function getInjected(key: string | null): Injected | null {
   if (typeof window === "undefined") return null;
+
+  const unwrap = (value: unknown): Injected | null => {
+    if (!value || typeof value !== "object") return null;
+    const wrapper = value as { solana?: unknown };
+    const provider = (wrapper.solana ?? value) as Injected;
+    return typeof provider.connect === "function" ? provider : null;
+  };
+
   if (key) {
-    const found = (window as unknown as Record<string, unknown>)[key];
-    return found ? (found as Injected) : null;
+    return unwrap((window as unknown as Record<string, unknown>)[key]);
   }
-  // Legacy Phantom global.
-  const legacy = (window as unknown as Record<string, unknown>).solana;
-  return legacy ? (legacy as Injected) : null;
+  // Legacy Phantom global, also wrapped.
+  return unwrap((window as unknown as Record<string, unknown>).solana);
 }
 
 /**
