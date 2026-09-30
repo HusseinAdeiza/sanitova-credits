@@ -164,48 +164,54 @@ export function ProofSection() {
           </div>
         </div>
 
-        {/* Honest limit */}
+        {/* Live on devnet */}
         <div className="panel mt-6 overflow-hidden">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line/12 px-5 py-4">
             <div className="flex items-center gap-2.5">
-              <Pill tone="warn">platform limit</Pill>
+              <Pill tone="live">verified on devnet</Pill>
               <p className="text-sm font-medium text-ink">
-                The router cannot revoke a verifier on a public cluster
+                A real Groth16 proof, checked inside the Solana VM
               </p>
             </div>
             <a
-              href="https://explorer.solana.com/address/5n8zx79RUHafwSSB4vRU5ao9atHzJQHTdJR9ty8YrVte?cluster=devnet"
+              href="https://explorer.solana.com/tx/3KuQVp5kLnAetbQsXKA2US1A2uY6FPNtEYGn6hQQkSgn7Mio9MriCdtnLeVEXiQsrKk3juzypfr8vtKDUfK7tiji?cluster=devnet"
               target="_blank"
               rel="noreferrer noopener"
               className="text-xs text-muted underline-offset-4 hover:text-ink hover:underline"
             >
-              router on explorer ↗
+              3KuQVp5k… on explorer ↗
             </a>
           </div>
           <div className="grid gap-6 px-5 py-5 md:grid-cols-2">
             <div>
               <p className="text-sm leading-relaxed text-muted">
-                risc0-solana's <span className="font-mono text-xs">add_verifier</span> requires the
-                router PDA to already be the verifier's LoaderV3 upgrade authority, so the router
-                could revoke a compromised verifier. Transferring that authority to a PDA is
-                impossible: the runtime rejects CPI of{" "}
-                <span className="font-mono text-xs">SetAuthority</span> with{" "}
-                <span className="font-mono text-xs">not supported by inner instructions</span>, and
-                a client cannot do it either because the CLI's checked variant needs the new
-                authority to sign.
+                The heartbeat on the left is not a recording. This transaction carries a real
+                RISC Zero proof and the whole chain runs on-chain: DeathClock calls the router,
+                the router dispatches on the selector, and{" "}
+                <span className="font-mono text-xs">groth_16_verifier</span> performs the BN254
+                pairing check inside the Solana runtime — 183,194 of 200,000 compute units, no
+                errors.
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-muted">
+                Getting the router to accept a public verifier was the hard part, and it looked
+                impossible for a while. The upgrade authority has to belong to the router PDA: a
+                CPI cannot move it, because LoaderV3 refuses{" "}
+                <span className="font-mono text-xs">SetAuthority</span> as an inner instruction.
               </p>
             </div>
             <div>
               <p className="text-sm leading-relaxed text-muted">
-                We tried it properly — an owner-gated claim instruction with every upstream
-                constraint intact, compiled and deployed. It fails at runtime for the reason above.
-                Dropping the authority check would make the router deployable and silently remove
-                the ability to revoke a broken verifier, so we left the constraint and deployed
-                without it.
+                The way through was the CLI flag{" "}
+                <span className="font-mono text-xs">--skip-new-upgrade-authority-signer-check</span>.
+                The default checked form needs the new authority to co-sign, which a PDA cannot
+                do; skipping that check leaves only the deployer's signature. The router now owns
+                the verifier, so revocation works exactly as upstream intended — and the deployer
+                can no longer upgrade it, which is the point.
               </p>
               <Footnote>
-                Full reproduction, including the reverted implementation, is in the repository
-                post-mortem.
+                Two dead ends on the way, including a hand-built loader instruction whose
+                &ldquo;missing account&rdquo; error read like a policy refusal, are in the
+                repository post-mortem.
               </Footnote>
             </div>
           </div>
