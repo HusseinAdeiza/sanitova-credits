@@ -1,0 +1,24 @@
+[Unit]
+Description=DeathClock localnet test validator
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Environment=PATH=/root/.local/share/solana/install/active_release/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStartPre=/bin/rm -rf /opt/deathclock/ledger
+ExecStartPre=/bin/mkdir -p /opt/deathclock/ledger
+ExecStart=/root/.local/share/solana/install/active_release/bin/solana-test-validator \
+  --reset \
+  --ledger /opt/deathclock/ledger \
+  --rpc-port 8899 \
+  --upgradeable-program /opt/deathclock/deathclock-keypair.json /opt/deathclock/deathclock.so 86ab21NszLjrmiipVvWfwoKmhJQ7Drpn5w5TxDnXvWKv \
+  --upgradeable-program /opt/deathclock/verifier_router-keypair.json /opt/deathclock/verifier_router.so 86ab21NszLjrmiipVvWfwoKmhJQ7Drpn5w5TxDnXvWKv \
+  --upgradeable-program /opt/deathclock/groth_16_verifier-keypair.json /opt/deathclock/groth_16_verifier.so 62PvmsCfYiaytGSR6tT9sxJrW1WMhxNrPMN6DVx3SeB6
+Restart=always
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
