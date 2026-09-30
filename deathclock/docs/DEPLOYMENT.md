@@ -71,8 +71,11 @@ the project website, so it needs correcting there.
 
 A subdomain is only reserved once a project claims it, so a 404 does not
 guarantee availability until a deploy actually succeeds.
-`deathclock-protocol.vercel.app` was free when checked and is the suggested
-name. A custom domain on the account would be better still.
+
+**The live site is https://deathclock-protocol.vercel.app** (team
+`mabera-labs`, production, verified serving). Use that URL in the Colosseum
+submission form in place of the taken one. Attaching a custom domain would
+be better still.
 
 ### Deploying
 
