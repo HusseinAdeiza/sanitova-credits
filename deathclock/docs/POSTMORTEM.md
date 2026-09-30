@@ -128,9 +128,9 @@ deploy each print one, and several runs printed `Signature:` while
 `scripts/deploy-devnet.sh` now gates on `getAccountInfo` and only reports
 success when the account is `executable` and owned by `BPFLoaderUpgradeab1`.
 
-### The wall: a verifier cannot be registered on a public cluster
+### The wall, and how it actually fell
 
-With the programs deployed, `add_verifier` still fails:
+With the programs deployed, `add_verifier` failed:
 
     AnchorError caused by account: verifier_program_data.
     Error Code: VerifierInvalidAuthority.
@@ -138,42 +138,76 @@ With the programs deployed, `add_verifier` still fails:
     and thus cannot delete.
 
 That constraint is load-bearing and worth keeping: the router must be able to
-upgrade or delete a verifier that turns out to be broken or compromised. It
-works locally because `solana-test-validator --bpf-program` assigns the
-authority at genesis. On a public cluster there is no equivalent, and both
-available mechanisms are closed:
+revoke a verifier that turns out to be broken or compromised. It works on
+localnet because `solana-test-validator --upgradeable-program` assigns the
+authority at genesis. On a public cluster there is no genesis, so the router
+PDA has to be handed the authority after the fact -- and three routes looked
+closed.
 
-- **A client cannot do it.** `solana program set-upgrade-authority` uses the
-  loader's `SetAuthorityChecked`, which requires the *new* authority to sign.
-  The new authority is a PDA, which has no private key. The attempt fails with
-  `missing signature for supplied pubkey`.
-- **A program cannot do it either.** The obvious fix is for the router to
-  perform the transfer itself with `invoke_signed` as the PDA, using the
-  unchecked `SetAuthority` that only needs the current (wallet) authority to
-  sign. It compiles, deploys, and runs — and the runtime rejects it:
+The router cannot take it itself. LoaderV3 forbids `SetAuthority` as an inner
+instruction, so an `invoke_signed` CPI is refused with
 
-      Program BPFLoaderUpgradeab1e11111111111111111111111
-      not supported by inner instructions
+    Program BPFLoaderUpgradeab1e11111111111111111111111 not supported by
+    inner instructions
 
-  Loader-v3 forbids CPI of `SetAuthority`, `Upgrade`, `Close` and `Deploy`
-  outright; the restriction is in the runtime, not in the loader's checks.
-  Upstream Agave has an open discussion of relaxing it.
+This one is real: it is a runtime restriction on CPI of `SetAuthority`,
+`Upgrade`, `Close` and `Deploy`, not a bug in how the instruction was built.
+I confirmed it against the Solana docs and upstream Agave discussion.
 
-So `DeathClock → verifier_router → groth_16_verifier` is verified on a local
-validator and cannot be assembled on devnet by a client, today, without
-patching the router to drop a security property it should not drop. The
-programs are on devnet and the router is initialized; the verifier entry is
-not, and that is a platform limit rather than an unfinished task.
+A plain client cannot take it either. `solana program set-upgrade-authority`
+defaults to the loader's `SetAuthorityChecked`, which requires the **new**
+authority to co-sign -- and a PDA cannot sign a top-level transaction.
 
-**The lesson.** Read the tool's own `--help` and its source before assuming
-the argument contract you remember, and treat a transaction signature as a
-claim, never as evidence. Both errors here presented as "the deploy worked but
-something downstream is wrong".
+**The fourth route is the one that works.** The same CLI subcommand has a flag
+for exactly this case:
+
+    solana program set-upgrade-authority <verifier> \
+      --new-upgrade-authority <router PDA> \
+      --skip-new-upgrade-authority-signer-check
+
+That drops the new-authority signature requirement, leaving only the current
+authority's -- which the deploy wallet can provide. `scripts/claim-verifier-authority.ts`
+does this, and `add_verifier` then succeeds.
+
+    registered groth16 verifier:
+    2n96CPsM6Ga8BPjAGtHMyriNGxm2QHm36jqQvVoX2ubSs7wzP1nfuWErNqrdsW9gUQCro3ftZcjLHGmScGVfrWhS
+
+Confirmed by reading the entry account back rather than trusting the log:
+selector `73c457ba`, verifier `2iPoTWMXWJ6inLnBeGEZyiKkwEzaQvCX24Cp82UcWm8K`,
+`estopped: false`. The router logs `Instruction: AddVerifier` and succeeds.
+
+Worth being precise about what this does and does not give up. The deployer
+still cannot upgrade the verifier afterwards, because authority now belongs to
+the router PDA and only the router can exercise it -- so the revocation
+property the constraint protects is fully intact. The flag changes *who may
+install* a verifier, not whether the router can *remove* one.
+
+#### Two dead ends on the way, both instructive
+
+**Hand-building the loader instruction in a client is a trap.** Constructing
+`SetAuthority` manually and submitting it failed with
+
+    Error processing Instruction 0: An account required by the instruction is
+    missing
+
+which reads like a policy refusal and is not one. It was a missing account in
+the instruction, and the real problem was that the CLI's own encoding is the
+thing worth using. Reached the correct answer only by reading
+`solana program set-upgrade-authority --help` inside the toolchain image,
+where the flag's description is right there.
+
+**A failed hand-rolled experiment is not evidence of a platform limit.** I had
+recorded the CPI wall as a hard stop and written it into this document. The
+instruction-shape failure above is a good reminder of the inverse: an error
+that says "missing", "invalid" or "not supported" is a statement about the
+bytes you sent, not about what the runtime permits.
 
 ---
 
 ## Smaller ones worth recording
 
+- **web3.js 1.99 uses global `fetch`, and `fetch` cannot reach public Solana RPC from this host.** Every RPC call failed with `TypeError: fetch failed` while `node:https` returned 200 from the same endpoint. The undici stack behind `fetch` is the culprit, not the network. `scripts/rpc-transport.ts` probes once and swaps in a `node:https` implementation of the subset web3.js uses. This one cost real time because it masqueraded as devnet rate-limiting, and the retry logic I added first made it look like a persistence problem.
+- **A `solana program show` that prints nothing is not a clean bill of health.** Under this shell it exits 0 with empty output. Read the ProgramData account directly: the upgrade authority is a `Option<Pubkey>` at byte 12 of `4-byte enum | u64 slot | 1-byte tag | 32-byte authority`. `scripts/show-authorities.ts` does this.
 - **Anchor 0.31.1 could not generate the IDL** for a fixed-size array, so the repo was ported to Anchor 0.32.2 rather than hand-maintaining the IDL. A generated IDL is worth more than a hand-edited one.
 - **Removing a program from `Anchor.toml` is not enough to exclude it.** Anchor still scans `programs/`. A fixture had to be moved to `disabled_programs/`.
 - **A Docker image's entrypoint can swallow your arguments.** `solanalabs/solana:v1.18.26` ignored the validator flags entirely until invoked with `--entrypoint solana-test-validator`. Two runs failed with "no programs loaded" before that.
@@ -192,10 +226,11 @@ in minutes with the right check: is the point on the curve, which line is the
 error on, does the slot advance, is the ledger on a bind mount, what does
 `getAccountInfo` say.
 
-The exception is the verifier registration wall in §6, which is a genuine
-platform limitation, confirmed against the Solana docs and upstream Agave.
-Knowing the difference mattered: it stopped me from either shipping code that
-cannot work or quietly dropping a security property to make a demo pass.
+The verifier registration wall in §6 was the one I was most confident was
+permanent, and it was not: the runtime restriction on CPI is real, but I had
+generalised from it to "impossible on a public cluster" without checking
+whether the CLI offered a third path. It did. Being sure a limit is a limit
+is worth verifying too, and the check is usually one `--help` away.
 
 **When a cryptographic or infrastructure error is generic, verify the algebra
 and the liveness before you blame the version.** A validator version is the

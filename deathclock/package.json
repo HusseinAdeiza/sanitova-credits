@@ -12,6 +12,9 @@
     "check:ids": "ts-node --project scripts/tsconfig.json scripts/check-program-ids.ts",
     "e2e:devnet": "tsx scripts/devnet-e2e.ts",
     "verify:live-vault": "tsx scripts/verify-live-vault.ts",
+    "router:claim": "tsx scripts/claim-verifier-authority.ts",
+    "router:setup": "tsx scripts/setup-router.ts",
+    "authorities": "tsx scripts/show-authorities.ts",
     "build:program": "docker run --rm -v C:/Users/nuhuq/Desktop/Buildings/deathclock:/workspace -v sanitova_solana_cargo:/root/.cargo -v sanitova_risc0_home:/root/.risc0 -v sanitova_solana_cache:/root/.cache/solana -w /workspace -e INITIAL_OWNER=86ab21NszLjrmiipVvWfwoKmhJQ7Drpn5w5TxDnXvWKv sanitova-solana bash -lc \"anchor build && node scripts/sync-idl.cjs\"",
     "lint": "prettier --check 'tests/**/*.ts'"
   },

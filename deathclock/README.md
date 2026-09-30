@@ -10,7 +10,8 @@ DeathClock ──CPI──▶ verifier_router ──selector 73c457ba──▶ g
                                             BN254 pairing check on the SNARK
 ```
 
-- Verified heartbeat transaction `5ngg4ghZrVjemXhr2fZ6GJ2i31w5nm3ow7S1CHaAy9n4YKDADdDwhABB5QYSGsfXFwzopZZZc585KnqgdeSMSkqN`, confirmed against a local validator running Solana 1.18.26. It is not on a public cluster. The three programs *are* deployed on devnet (see below), but the proof path is not, so there is deliberately no public explorer link here.
+- Verified heartbeat transaction `5ngg4ghZrVjemXhr2fZ6GJ2i31w5nm3ow7S1CHaAy9n4YKDADdDwhABB5QYSGsfXFwzopZZZc585KnqgdeSMSkqN`, confirmed against a local validator running Solana 1.18.26.
+- The proof path is now wired on devnet too: all three programs are deployed, and the Groth16 verifier is registered with the router under selector `73c457ba` by transaction [`2n96CPsM…`](https://explorer.solana.com/tx/2n96CPsM6Ga8BPjAGtHMyriNGxm2QHm36jqQvVoX2ubSs7wzP1nfuWErNqrdsW9gUQCro3ftZcjLHGmScGVfrWhS?cluster=devnet), which logs `Instruction: AddVerifier`. The remaining step is submitting a heartbeat with a freshly generated seal, which needs a prover -- see the limitations below.
 - Tamper case: the same receipt with a modified journal is **rejected**.
 - Live on devnet: vault [`GdqwHKfJ7wgNSGJ53J7mrA986Tg1UefUK9Y3btzX7Btt`](https://explorer.solana.com/address/GdqwHKfJ7wgNSGJ53J7mrA986Tg1UefUK9Y3btzX7Btt?cluster=devnet) — 0.4 SOL deposited, two heirs at 60/40, created and funded by `npm run e2e:devnet`. Reproduce with `npm run verify:live-vault`, which decodes it through the same path the deployed site uses.
 
@@ -148,9 +149,30 @@ account back from the cluster (`executable: true`, owned by
 Router state `7NHg6MZbtSaxJ7DQzdFCXLd1ZCJgHiYA2epxbGYYcPpQ` is initialized
 and owned by the router program.
 
-The **proof path is not yet live on devnet**: `add_verifier` requires the
-router PDA to hold the verifier's upgrade authority, which cannot be arranged
-on a public cluster. See limitation 2 below and `docs/POSTMORTEM.md` §6.
+The **proof path is wired on devnet**. `add_verifier` requires the router PDA
+to hold the verifier's upgrade authority, and LoaderV3 forbids `SetAuthority`
+as a CPI -- but `solana program set-upgrade-authority
+--skip-new-upgrade-authority-signer-check` hands it over in a top-level
+transaction, since a PDA cannot co-sign the default checked form. See
+`docs/POSTMORTEM.md` §6 for how this was established, including the two dead
+ends on the way.
+
+| | |
+|---|---|
+| Verifier entry | `HFAWG7uYosXrfWHho4Q7Q3BqxcqqEAA8UsRUhjskHycF` |
+| Selector | `73c457ba` |
+| `estopped` | `false` |
+| Registered by | [`2n96CPsM…`](https://explorer.solana.com/tx/2n96CPsM6Ga8BPjAGtHMyriNGxm2QHm36jqQvVoX2ubSs7wzP1nfuWErNqrdsW9gUQCro3ftZcjLHGmScGVfrWhS?cluster=devnet) |
+
+The deployer cannot upgrade the verifier afterwards -- authority belongs to
+the router PDA, so the revocation property `add_verifier` protects is intact.
+
+Re-running the setup on a fresh cluster:
+
+```bash
+npx tsx scripts/claim-verifier-authority.ts   # once, moves the authority
+npx tsx scripts/setup-router.ts               # initializes + registers
+```
 
 Redeploying after a program-ID change:
 
@@ -171,7 +193,7 @@ ever received lamports can never become a program account.
 ## Honest limitations
 
 1. **Not audited.** The security model is reasoned, not third-party reviewed.
-2. **The proof path is not on devnet.** All three programs are deployed there and the router is initialized, but `add_verifier` requires the router PDA to hold the verifier's LoaderV3 upgrade authority so it can delete a compromised verifier. A client cannot transfer authority to a PDA (the loader's checked `SetAuthority` needs the new authority to sign), and a program cannot either (the runtime rejects loader CPIs: `not supported by inner instructions`). Upstream assumes `solana-test-validator --bpf-program` assigns that authority at genesis, which only a validator operator can do. `docs/POSTMORTEM.md` §6 has the full account.
+2. **The heartbeat has not been submitted on devnet.** The path is registered and the verifier is live, but no public heartbeat transaction exists yet, because a genuine seal still has to come from a prover. Everything up to the proof is confirmed on-chain; the proof itself is the gap. `docs/POSTMORTEM.md` §6 records how registration was achieved.
 3. **The browser cannot produce proofs.** A Groth16 proof needs the RISC Zero prover, which is a multi-GB Docker pipeline. The frontend constructs and hashes the public journal but stops before submission without a real receipt. A live demo needs a proving service.
 4. **The oracle design is experimental.** Death confirmation is currently a function of the challenge period elapsing unchallenged, not an independent death attestation.
 5. **Release moves lamports directly**, not from a PDA-owned token account. Native SOL works; a tokenised estate would need rework.
