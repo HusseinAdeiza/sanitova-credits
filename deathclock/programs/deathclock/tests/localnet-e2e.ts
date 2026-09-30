@@ -20,8 +20,8 @@ import { createHash } from "node:crypto";
 import { Deathclock } from "../../../target/types/deathclock";
 
 import {
-  ROUTER_PROGRAM_ID,
-  GROTH16_VERIFIER_PROGRAM_ID,
+  ROUTER_PROGRAM,
+  GROTH16_VERIFIER_PROGRAM,
   SELECTOR,
 } from "../../../scripts/program-ids";
 
@@ -41,11 +41,11 @@ const fromHex = (hex: string) => Array.from(Buffer.from(hex, "hex"));
 
 const routerState = PublicKey.findProgramAddressSync(
   [Buffer.from("router")],
-  ROUTER_PROGRAM_ID,
+  ROUTER_PROGRAM,
 )[0];
 const verifierEntry = PublicKey.findProgramAddressSync(
   [Buffer.from("verifier"), Buffer.from(SELECTOR)],
-  ROUTER_PROGRAM_ID,
+  ROUTER_PROGRAM,
 )[0];
 
 function loadKeypair(path: string): Keypair {
@@ -148,10 +148,10 @@ describe("DeathClock localnet E2E (real RISC Zero receipt)", () => {
       )
       .accounts({
         owner: owner.publicKey,
-        router: ROUTER_PROGRAM_ID,
+        router: ROUTER_PROGRAM,
         routerState,
         verifierEntry,
-        verifierProgram: GROTH16_VERIFIER_PROGRAM_ID,
+        verifierProgram: GROTH16_VERIFIER_PROGRAM,
         systemProgram: SystemProgram.programId,
       } as any)
       .rpc();
@@ -184,10 +184,10 @@ describe("DeathClock localnet E2E (real RISC Zero receipt)", () => {
         )
         .accounts({
           owner: owner.publicKey,
-          router: ROUTER_PROGRAM_ID,
+          router: ROUTER_PROGRAM,
           routerState,
           verifierEntry,
-          verifierProgram: GROTH16_VERIFIER_PROGRAM_ID,
+          verifierProgram: GROTH16_VERIFIER_PROGRAM,
           systemProgram: SystemProgram.programId,
         } as any)
         .rpc();

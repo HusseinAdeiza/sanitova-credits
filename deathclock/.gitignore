@@ -8,3 +8,6 @@ app/.next/
 
 # build artifacts
 *.tsbuildinfo
+
+# keep the documented template even though .env.* is ignored
+!.env.example

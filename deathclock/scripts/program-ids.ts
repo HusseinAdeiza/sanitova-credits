@@ -12,6 +12,8 @@
 // build embeds the stale id, and the program deploys to the wrong address.
 // Verify a build with the generated IDL's "address" field, never with the ELF.
 
+import { PublicKey } from "@solana/web3.js";
+
 /** Devnet deployment, verified on-chain (executable, BPFLoaderUpgradeab1). */
 export const DEATHCLOCK_PROGRAM_ID =
   "C8unxtjoDZWy2GmwHUPuSve1BHT5TtRKpNaDofbMS5Vh";
@@ -26,3 +28,13 @@ export const VERIFIER_ENTRY = "HFAWG7uYosXrfWHho4Q7Q3BqxcqqEAA8UsRUhjskHycF";
 
 // Groth16ReceiptVerifierParameters::default().digest()[0..4]
 export const SELECTOR = [0x73, 0xc4, 0x57, 0xba];
+
+// The same addresses as ready-to-use keys, for callers that pass them straight
+// into web3.js (PDA derivation, Anchor `.accounts({...})`). Anchor also accepts
+// a base58 string there, but `PublicKey.findProgramAddressSync` requires a
+// real PublicKey, so exporting only the strings silently broke that.
+export const DEATHCLOCK_PROGRAM = new PublicKey(DEATHCLOCK_PROGRAM_ID);
+export const ROUTER_PROGRAM = new PublicKey(ROUTER_PROGRAM_ID);
+export const GROTH16_VERIFIER_PROGRAM = new PublicKey(GROTH16_VERIFIER_PROGRAM_ID);
+export const ROUTER_STATE_PDA = new PublicKey(ROUTER_STATE);
+export const VERIFIER_ENTRY_PDA = new PublicKey(VERIFIER_ENTRY);

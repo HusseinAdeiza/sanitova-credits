@@ -1,5 +1,5 @@
 {
-  "address": "BF1Y36xBRoQVB7z3gi5rSnciAHwbn5yMn8ToSnZ8Woo",
+  "address": "C8unxtjoDZWy2GmwHUPuSve1BHT5TtRKpNaDofbMS5Vh",
   "metadata": {
     "name": "deathclock",
     "version": "0.1.0",
@@ -149,7 +149,7 @@
         },
         {
           "name": "router",
-          "address": "2CYCBtLHLrd13S9AvvZ73SS691bfzNM7uQoayRtmeFT3"
+          "address": "5n8zx79RUHafwSSB4vRU5ao9atHzJQHTdJR9ty8YrVte"
         },
         {
           "name": "router_state"

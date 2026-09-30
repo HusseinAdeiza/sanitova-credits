@@ -17,4 +17,6 @@ export type VaultSnapshot = {
   error?: string;
 };
 
-export type HeartbeatPayload = { seal: { selector: number[]; proof: { piA: number[]; piB: number[]; piC: number[] } }; journalOutputs: number[] };
+// Re-exported from utils/seal, which owns the shape and its parser. Keeping it
+// here as well preserves the existing `@/types` import path.
+export type { HeartbeatPayload, HeartbeatSeal } from "@/utils/seal";

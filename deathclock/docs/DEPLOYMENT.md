@@ -35,13 +35,72 @@ solana program logs "$PROGRAM_ID" --url https://api.devnet.solana.com
 
 ## Frontend
 
-Set the public RPC URL before building:
+The app is a standard Next.js 14 project, so Vercel needs no custom build
+settings. For a local production check:
 
 ```bash
-export NEXT_PUBLIC_RPC_URL=https://api.devnet.solana.com
 cd app
 npm run build
 npm run start
 ```
 
-The current UI surface is verified as a production build. Live transaction wiring remains a release task until a deployed program ID and wallet integration are configured.
+### Configuration
+
+No environment variables are required: every value in
+`src/utils/constants.ts` and `src/utils/verifier.ts` defaults to the verified
+devnet deployment. `.env.example` documents each variable plus the localnet
+overrides. Set them only when targeting another cluster:
+
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_PROGRAM_ID` | DeathClock program address |
+| `NEXT_PUBLIC_ROUTER_PROGRAM_ID` | RISC Zero `verifier_router` |
+| `NEXT_PUBLIC_GROTH16_VERIFIER_PROGRAM_ID` | `groth_16_verifier` |
+| `NEXT_PUBLIC_RPC_URL` | RPC endpoint |
+| `NEXT_PUBLIC_NETWORK` | `devnet` or `localnet`, for explorer links |
+
+None are secret. The app signs through Phantom and never handles a private
+key, so nothing sensitive belongs in this project's environment.
+
+### The URL
+
+`https://deathclock.vercel.app` is **already taken** by an unrelated project
+("100 Year Death Clock Wheel" — a literal countdown widget, not this
+protocol). It cannot be claimed, and the Colosseum submission form lists it as
+the project website, so it needs correcting there.
+
+A subdomain is only reserved once a project claims it, so a 404 does not
+guarantee availability until a deploy actually succeeds.
+`deathclock-protocol.vercel.app` was free when checked and is the suggested
+name. A custom domain on the account would be better still.
+
+### Deploying
+
+```bash
+cd app
+npx vercel login      # or: npx vercel login --github
+npx vercel --prod
+```
+
+### Verifying the deploy
+
+Do not trust the deploy log: a successful build says nothing about whether the
+page talks to a real program. Load the site, connect Phantom, and confirm the
+vault address is one actually initialised on devnet and that its balance and
+state load. A site pointed at the wrong program id still derives a plausible
+PDA and reports "not initialised" forever, so only real vault state proves the
+wiring.
+
+### Heartbeats on the live site
+
+The site submits real Groth16 seals and will not fabricate one. A heartbeat
+needs a `seal.json` from the proving pipeline:
+
+```bash
+./scripts/prove-heartbeat.sh
+```
+
+Paste that file's contents into the heartbeat panel. The browser signs the
+transaction; the prover does the cryptography. This is deliberate — the
+program rejects anything that is not a real proof, so a browser-side "demo
+proof" button would appear to work while producing nothing the chain accepts.
