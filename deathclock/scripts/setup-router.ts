@@ -62,7 +62,8 @@ async function main() {
   // Only top up if we are actually short. `requestAirdrop` is heavily
   // rate-limited on devnet and throws on failure, so never call it
   // speculatively -- check the balance first.
-  const lamports = (await connection.getBalance(authority.publicKey)).lamports;
+  // `getBalance` resolves to a lamport count, not a context object.
+  const lamports = await connection.getBalance(authority.publicKey);
   const MIN_AUTHORITY_LAMPORTS = 0.5 * 1_000_000_000;
   if (lamports < MIN_AUTHORITY_LAMPORTS) {
     console.log(
@@ -100,11 +101,28 @@ async function main() {
     return;
   }
 
-  // 2. The verifier's LoaderV3 upgrade authority is already the router PDA:
-  // it is supplied as the third --upgradeable-program argument at genesis, so
-  // there is no authority transfer to perform here.
-
-  // 3. register the verifier under the Groth16 selector
+  // 2. Register the verifier under the Groth16 selector.
+  //
+  // NOTE: this requires the router PDA to already be the verifier's LoaderV3
+  // upgrade authority, which add_verifier checks so the router can delete a
+  // broken or compromised verifier.
+  //
+  // That works on a local validator because `solana-test-validator
+  // --bpf-program` assigns the authority at genesis. It cannot be done on a
+  // public cluster, and this is a platform limit rather than a deployment
+  // mistake:
+  //
+  //   * A client cannot do it, because `solana program set-upgrade-authority`
+  //     uses the loader's SetAuthorityChecked, which requires the NEW
+  //     authority to sign -- and the new authority is a PDA.
+  //   * A program cannot do it either. Having the router perform the transfer
+  //     with invoke_signed as the PDA looks right, but the runtime rejects it:
+  //     "Program BPFLoaderUpgradeab1e... not supported by inner instructions".
+  //     Loader-v3 forbids CPI of SetAuthority/Upgrade/Close/Deploy entirely.
+  //
+  // So on devnet this call is expected to fail with VerifierInvalidAuthority
+  // until the verifier is deployed by a validator operator. See
+  // docs/POSTMORTEM.md.
   const s = await router.methods
     .addVerifier(SELECTOR)
     .accounts({

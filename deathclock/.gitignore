@@ -5,3 +5,6 @@ app/.next/
 .env
 .env.*
 *.log
+
+# build artifacts
+*.tsbuildinfo

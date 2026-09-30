@@ -83,6 +83,95 @@ Two separate failures, same root cause.
 
 ---
 
+## 6. Deploying to a public cluster: four mistakes, then a real wall
+
+Getting the three programs onto public devnet took four wrong approaches
+before it worked. All four failed *silently enough* to be worth writing down,
+because in every case a transaction signature was printed and the program
+account stayed empty.
+
+**`Anchor.toml` overrides `declare_id!`.** The vendored
+`solana-verifier/Anchor.toml` still carried upstream's program IDs. Editing
+the `declare_id!` literal in `lib.rs` changed the generated IDL but not the
+binary, and `anchor build` skipped the rebuild entirely when a stale
+fingerprint matched. Verify a build with the IDL's `address` field. Do not
+try to grep the ELF: SBPF does not store the program ID as bytes or a symbol,
+so that check can only mislead.
+
+**The toolchain's CLI is a major version ahead of the validator.** The image
+ships `solana-cli 4.2.2`, whose signature is
+
+    solana program deploy [FLAGS] [OPTIONS] [PROGRAM_FILEPATH]
+
+There is no positional program-keypair argument, and `--keypair` is the *fee
+payer*. Passing the program keypair there made the CLI mint a throwaway
+keypair and deploy to a random address, which it then reported as
+`Program Id: <something unrelated>`. Every symptom followed from that: IDs
+that matched no keypair, "insufficient funds" against accounts never funded,
+and `Program <old id> has been closed` for IDs that were not in the build at
+all. The working form is
+
+    solana program deploy --url devnet \
+        --keypair <fee-payer> --program-id <path/to/keypair.json> <so>
+
+where `--program-id` takes a **keypair path**, not a pubkey.
+
+**Never fund a program keypair before deploying.** Any transfer creates the
+account, and an existing account can never become a program account — even a
+0-byte account owes the rent-exempt minimum, so the loader rejects it with
+`not an upgradeable program or already in use`. Rent is charged to the fee
+payer during the deploy. This cost three sets of keypairs.
+
+**A signature is not proof of deployment.** The funding transfer and the
+deploy each print one, and several runs printed `Signature:` while
+`getAccountInfo` still showed `executable: false` under the System Program.
+`scripts/deploy-devnet.sh` now gates on `getAccountInfo` and only reports
+success when the account is `executable` and owned by `BPFLoaderUpgradeab1`.
+
+### The wall: a verifier cannot be registered on a public cluster
+
+With the programs deployed, `add_verifier` still fails:
+
+    AnchorError caused by account: verifier_program_data.
+    Error Code: VerifierInvalidAuthority.
+    Attempted to add a verifier contract that the router contract does not own
+    and thus cannot delete.
+
+That constraint is load-bearing and worth keeping: the router must be able to
+upgrade or delete a verifier that turns out to be broken or compromised. It
+works locally because `solana-test-validator --bpf-program` assigns the
+authority at genesis. On a public cluster there is no equivalent, and both
+available mechanisms are closed:
+
+- **A client cannot do it.** `solana program set-upgrade-authority` uses the
+  loader's `SetAuthorityChecked`, which requires the *new* authority to sign.
+  The new authority is a PDA, which has no private key. The attempt fails with
+  `missing signature for supplied pubkey`.
+- **A program cannot do it either.** The obvious fix is for the router to
+  perform the transfer itself with `invoke_signed` as the PDA, using the
+  unchecked `SetAuthority` that only needs the current (wallet) authority to
+  sign. It compiles, deploys, and runs — and the runtime rejects it:
+
+      Program BPFLoaderUpgradeab1e11111111111111111111111
+      not supported by inner instructions
+
+  Loader-v3 forbids CPI of `SetAuthority`, `Upgrade`, `Close` and `Deploy`
+  outright; the restriction is in the runtime, not in the loader's checks.
+  Upstream Agave has an open discussion of relaxing it.
+
+So `DeathClock → verifier_router → groth_16_verifier` is verified on a local
+validator and cannot be assembled on devnet by a client, today, without
+patching the router to drop a security property it should not drop. The
+programs are on devnet and the router is initialized; the verifier entry is
+not, and that is a platform limit rather than an unfinished task.
+
+**The lesson.** Read the tool's own `--help` and its source before assuming
+the argument contract you remember, and treat a transaction signature as a
+claim, never as evidence. Both errors here presented as "the deploy worked but
+something downstream is wrong".
+
+---
+
 ## Smaller ones worth recording
 
 - **Anchor 0.31.1 could not generate the IDL** for a fixed-size array, so the repo was ported to Anchor 0.32.2 rather than hand-maintaining the IDL. A generated IDL is worth more than a hand-edited one.
@@ -96,6 +185,21 @@ Two separate failures, same root cause.
 
 ## The throughline
 
-Four of these five presented as a problem with the platform — a missing syscall, a rejected proof, a dead process, a slow filesystem. All four were misconfigurations or oversights on my side, and all four were diagnosable in minutes with the right check: is the point on the curve, which line is the error on, does the slot advance, is the ledger on a bind mount.
+Most of these presented as a problem with the platform — a missing syscall, a
+rejected proof, a dead process, a slow filesystem, a "closed" program. Nearly
+all were misconfigurations or oversights on my side, and all were diagnosable
+in minutes with the right check: is the point on the curve, which line is the
+error on, does the slot advance, is the ledger on a bind mount, what does
+`getAccountInfo` say.
 
-**When a cryptographic or infrastructure error is generic, verify the algebra and the liveness before you blame the version.** A validator version is the explanation you reach for last, not first.
+The exception is the verifier registration wall in §6, which is a genuine
+platform limitation, confirmed against the Solana docs and upstream Agave.
+Knowing the difference mattered: it stopped me from either shipping code that
+cannot work or quietly dropping a security property to make a demo pass.
+
+**When a cryptographic or infrastructure error is generic, verify the algebra
+and the liveness before you blame the version.** A validator version is the
+explanation you reach for last, not first. **And when you have exhausted your
+own explanations, check whether the platform is actually asking for
+something impossible** — but prove that from the runtime's own error and the
+documentation, not from a plausible theory.

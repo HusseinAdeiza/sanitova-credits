@@ -10,7 +10,7 @@ DeathClock ──CPI──▶ verifier_router ──selector 73c457ba──▶ g
                                             BN254 pairing check on the SNARK
 ```
 
-- Verified heartbeat transaction `5ngg4ghZrVjemXhr2fZ6GJ2i31w5nm3ow7S1CHaAy9n4YKDADdDwhABB5QYSGsfXFwzopZZZc585KnqgdeSMSkqN`, confirmed against a local validator running Solana 1.18.26. It is not on a public cluster — devnet is the next step, and a public explorer link would be a claim this repository has not earned.
+- Verified heartbeat transaction `5ngg4ghZrVjemXhr2fZ6GJ2i31w5nm3ow7S1CHaAy9n4YKDADdDwhABB5QYSGsfXFwzopZZZc585KnqgdeSMSkqN`, confirmed against a local validator running Solana 1.18.26. It is not on a public cluster. The three programs *are* deployed on devnet (see below), but the proof path is not, so there is deliberately no public explorer link here.
 - Tamper case: the same receipt with a modified journal is **rejected**.
 
 ## The problem
@@ -132,10 +132,45 @@ docker run --rm -v "$PWD:/workspace" \
   sanitova-solana bash -lc 'cargo test -p deathclock-zk'
 ```
 
+## Devnet deployment
+
+All three programs are live on public devnet, each verified by reading the
+account back from the cluster (`executable: true`, owned by
+`BPFLoaderUpgradeab1`) rather than by trusting a deploy signature.
+
+| Program | Devnet address |
+|---|---|
+| `deathclock` | `C8unxtjoDZWy2GmwHUPuSve1BHT5TtRKpNaDofbMS5Vh` |
+| `verifier_router` | `5n8zx79RUHafwSSB4vRU5ao9atHzJQHTdJR9ty8YrVte` |
+| `groth_16_verifier` | `2iPoTWMXWJ6inLnBeGEZyiKkwEzaQvCX24Cp82UcWm8K` |
+
+Router state `7NHg6MZbtSaxJ7DQzdFCXLd1ZCJgHiYA2epxbGYYcPpQ` is initialized
+and owned by the router program.
+
+The **proof path is not yet live on devnet**: `add_verifier` requires the
+router PDA to hold the verifier's upgrade authority, which cannot be arranged
+on a public cluster. See limitation 2 below and `docs/POSTMORTEM.md` §6.
+
+Redeploying after a program-ID change:
+
+```bash
+docker run --rm -v "$PWD:/workspace" \
+  -v sanitova_solana_cargo:/root/.cargo \
+  -v sanitova_solana_cache:/root/.cache/solana \
+  -v "$HOME/.config/solana:/root/.config/solana" \
+  -w /workspace -e DEATHCLOCK_AUTHORITY=<pubkey> \
+  sanitova-solana bash -lc 'bash scripts/deploy-devnet.sh'
+```
+
+Two rules that script encodes, both learned the hard way: a program ID lives in
+`Anchor.toml` as well as `declare_id!` and **Anchor.toml wins**, and a program
+keypair must never be funded before deploying, because an account that has
+ever received lamports can never become a program account.
+
 ## Honest limitations
 
 1. **Not audited.** The security model is reasoned, not third-party reviewed.
-2. **No devnet deployment yet.** The program IDs in this repository are localnet identities compiled into `declare_id!`. Devnet needs freshly generated keypairs, and because DeathClock's CPI embeds the router program ID, changing it requires rebuilding all three programs.
+2. **The proof path is not on devnet.** All three programs are deployed there and the router is initialized, but `add_verifier` requires the router PDA to hold the verifier's LoaderV3 upgrade authority so it can delete a compromised verifier. A client cannot transfer authority to a PDA (the loader's checked `SetAuthority` needs the new authority to sign), and a program cannot either (the runtime rejects loader CPIs: `not supported by inner instructions`). Upstream assumes `solana-test-validator --bpf-program` assigns that authority at genesis, which only a validator operator can do. `docs/POSTMORTEM.md` §6 has the full account.
 3. **The browser cannot produce proofs.** A Groth16 proof needs the RISC Zero prover, which is a multi-GB Docker pipeline. The frontend constructs and hashes the public journal but stops before submission without a real receipt. A live demo needs a proving service.
 4. **The oracle design is experimental.** Death confirmation is currently a function of the challenge period elapsing unchallenged, not an independent death attestation.
 5. **Release moves lamports directly**, not from a PDA-owned token account. Native SOL works; a tokenised estate would need rework.
@@ -149,7 +184,7 @@ The proof is the part worth showing live: generate one, watch the router dispatc
 
 ## Roadmap
 
-- Deploy all three programs to devnet with freshly generated program IDs.
+- ~~Deploy all three programs to devnet~~ — done; see the devnet section below.
 - Stand up a proving service so the frontend can request a receipt.
 - Move release logic from lamport mutation to a PDA-owned token account.
 - Commission an external audit.
