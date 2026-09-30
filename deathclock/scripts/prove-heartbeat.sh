@@ -43,7 +43,7 @@ NONCE_HEX="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --owner) OWNER_HEX="$2"; shift 2 ;;
-    --timestamp) TIMESTAMP="$2"; shift 2 ;;
+    --timestamp) TIMESTAMP="$2"; TIMESTAMP_OVERRIDE="$2"; shift 2 ;;
     --nonce) NONCE_HEX="$2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -107,9 +107,17 @@ docker run --rm \
 
 echo
 echo "==> phase 1: STARK proof"
-# Re-take the clock immediately before proving; the program's 300s freshness
-# window starts at this timestamp.
-TIMESTAMP="$(date +%s)"
+# Re-take the clock immediately before proving, but never discard an explicit
+# --timestamp. scripts/devnet-heartbeat.ts passes a future timestamp so the
+# receipt lands inside the program's 300s window *at submission*, because the
+# Groth16 wrap alone takes 300-450s. An unconditional `date +%s` here threw
+# that argument away, so every devnet seal was born already stale and the
+# program rejected it on arrival.
+if [[ -z "${TIMESTAMP_OVERRIDE:-}" ]]; then
+  TIMESTAMP="$(date +%s)"
+else
+  TIMESTAMP="$TIMESTAMP_OVERRIDE"
+fi
 NONCE_HEX="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 in_container phase1 "$TIMESTAMP"
 

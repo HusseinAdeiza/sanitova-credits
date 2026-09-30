@@ -39,6 +39,7 @@ async function probe(url: string): Promise<boolean> {
 }
 
 function fetchViaHttps(input: unknown, init: Record<string, unknown> = {}) {
+  // marker for diagnostics: scripts check for this string to confirm the shim is live
   const href = typeof input === "string" ? input : (input as { url: string }).url;
   const url = new URL(href);
   const rawBody = init.body;
@@ -86,8 +87,34 @@ export async function ensureRpcTransport(rpcUrl: string): Promise<boolean> {
     globalThis.fetch = fetchViaHttps as unknown as typeof fetch;
     return false;
   }
-  if (await probe(rpcUrl)) return true;
 
+  // Do not trust a probe. On this host `fetch` against api.devnet.solana.com
+  // fails *intermittently*: it passes a health check and then drops the
+  // connection on the next real call, which surfaced as a heartbeat proof
+  // being generated and then discarded at submission time. Probing cannot
+  // distinguish "works" from "worked once".
+  //
+  // node:https has been reliable here for every call, so on Windows the shim
+  // is installed unconditionally. Elsewhere the probe still decides, so Linux
+  // and CI keep the native transport.
+  if (process.platform === "win32") {
+    globalThis.fetch = fetchViaHttps as unknown as typeof fetch;
+    return false;
+  }
+
+  if (await probe(rpcUrl)) return true;
   globalThis.fetch = fetchViaHttps as unknown as typeof fetch;
   return false;
+}
+
+/**
+ * Whether the node:https shim is currently installed as global fetch.
+ *
+ * Do not detect this by function name: the shim is an arrow function assigned
+ * to a property, so `fetch.name` is empty and a name check reports "not
+ * installed" while the shim is in fact serving every request. The marker
+ * string below is only present in the shim's source.
+ */
+export function isRpcShimInstalled(): boolean {
+  return typeof globalThis.fetch === "function" && globalThis.fetch.toString().includes("marker for diagnostics");
 }

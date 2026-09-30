@@ -11,7 +11,13 @@ DeathClock ──CPI──▶ verifier_router ──selector 73c457ba──▶ g
 ```
 
 - Verified heartbeat transaction `5ngg4ghZrVjemXhr2fZ6GJ2i31w5nm3ow7S1CHaAy9n4YKDADdDwhABB5QYSGsfXFwzopZZZc585KnqgdeSMSkqN`, confirmed against a local validator running Solana 1.18.26.
-- The proof path is now wired on devnet too: all three programs are deployed, and the Groth16 verifier is registered with the router under selector `73c457ba` by transaction [`2n96CPsM…`](https://explorer.solana.com/tx/2n96CPsM6Ga8BPjAGtHMyriNGxm2QHm36jqQvVoX2ubSs7wzP1nfuWErNqrdsW9gUQCro3ftZcjLHGmScGVfrWhS?cluster=devnet), which logs `Instruction: AddVerifier`. The remaining step is submitting a heartbeat with a freshly generated seal, which needs a prover -- see the limitations below.
+- **The proof path is live on public devnet.** Heartbeat transaction [`3KuQVp5k…`](https://explorer.solana.com/tx/3KuQVp5kLnAetbQsXKA2US1A2uY6FPNtEYGn6hQQkSgn7Mio9MriCdtnLeVEXiQsrKk3juzypfr8vtKDUfK7tiji?cluster=devnet) carries a genuine RISC Zero Groth16 proof and runs the whole chain on-chain:
+
+  ```
+  DeathClock::heartbeat -> verifier_router::verify -> groth_16_verifier::verify
+  ```
+
+  183,194 of 200,000 compute units, `err: None`. The BN254 pairing check runs inside the Solana VM, not off-chain. Reproduce with `npm run heartbeat:devnet`.
 - Tamper case: the same receipt with a modified journal is **rejected**.
 - Live on devnet: vault [`GdqwHKfJ7wgNSGJ53J7mrA986Tg1UefUK9Y3btzX7Btt`](https://explorer.solana.com/address/GdqwHKfJ7wgNSGJ53J7mrA986Tg1UefUK9Y3btzX7Btt?cluster=devnet) — 0.4 SOL deposited, two heirs at 60/40, created and funded by `npm run e2e:devnet`. Reproduce with `npm run verify:live-vault`, which decodes it through the same path the deployed site uses.
 
@@ -193,7 +199,7 @@ ever received lamports can never become a program account.
 ## Honest limitations
 
 1. **Not audited.** The security model is reasoned, not third-party reviewed.
-2. **The heartbeat has not been submitted on devnet.** The path is registered and the verifier is live, but no public heartbeat transaction exists yet, because a genuine seal still has to come from a prover. Everything up to the proof is confirmed on-chain; the proof itself is the gap. `docs/POSTMORTEM.md` §6 records how registration was achieved.
+2. **Proving takes 4-5 minutes, and the freshness window is 300 seconds.** The program accepts a receipt up to 300s old and 60s in the future, so the seal is proven for a forward-shifted timestamp and the two must be issued as one flow. `npm run heartbeat:devnet` does this, deriving the offset from measured proving times. In production this is what a proving service exists to absorb -- the browser cannot do it, which is limitation 3.
 3. **The browser cannot produce proofs.** A Groth16 proof needs the RISC Zero prover, which is a multi-GB Docker pipeline. The frontend constructs and hashes the public journal but stops before submission without a real receipt. A live demo needs a proving service.
 4. **The oracle design is experimental.** Death confirmation is currently a function of the challenge period elapsing unchallenged, not an independent death attestation.
 5. **Release moves lamports directly**, not from a PDA-owned token account. Native SOL works; a tokenised estate would need rework.
