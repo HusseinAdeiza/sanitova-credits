@@ -58,7 +58,12 @@
     --c-ink: 238 237 232;
     --c-muted: 154 158 166;
     /* 5.50:1 on canvas, 4.70:1 on raised — clears AA for small text. */
-    --c-faint: 132 137 146;
+    /* Lightened from 132 137 146 for the dark-theme notice strip. Its
+       bg-ink/[0.02] sits a light ink over panel-raised, lifting the background
+       to 31 35 42 and pulling 12px body copy to 4.48:1 -- just under AA. The
+       same faint on the un-lifted panel is 4.70:1, so the failure only shows up
+       when a background is composited, which is why the audit has to do that. */
+    --c-faint: 152 158 168;
     /* On the inverted panel the ground is light, so this needs to be a dark
        grey rather than a lighter one. */
     --c-on-invert: 92 96 104;
