@@ -83,6 +83,10 @@ pub enum DeathClockError {
     InvalidClock,
     #[msg("Arithmetic overflow")]
     ArithmeticOverflow,
+    #[msg("Payout account does not match the registered heir")]
+    HeirAccountMismatch,
+    #[msg("Payout account is not a safe system-owned recipient")]
+    UnsafePayoutAccount,
 }
 
 #[event]
@@ -492,7 +496,28 @@ pub mod deathclock {
             remainder = remainder
                 .checked_sub(amount)
                 .ok_or(DeathClockError::ArithmeticOverflow)?;
+            // The caller chooses remaining_accounts, so each one must be bound to
+            // the heir recorded in the vault. Without this check any account can
+            // be named here and the payout is redirectable: release_inheritance
+            // takes no Signer, so whoever calls it decides who gets paid.
             let heir_info = ctx.remaining_accounts[index].clone();
+            require_keys_eq!(
+                heir_info.key(),
+                heirs[index],
+                DeathClockError::HeirAccountMismatch
+            );
+            // Crediting lamports to an account owned by a program can corrupt
+            // that program's invariants (a token account's balance lives in its
+            // data, not in its lamports), so only plain system-owned accounts
+            // with no data are accepted as recipients.
+            require!(
+                *heir_info.owner == system_program::ID,
+                DeathClockError::UnsafePayoutAccount
+            );
+            require!(
+                heir_info.data_len() == 0,
+                DeathClockError::UnsafePayoutAccount
+            );
             **vault_info.try_borrow_mut_lamports()? -= amount;
             **heir_info.try_borrow_mut_lamports()? += amount;
             emit!(InheritancePayment {

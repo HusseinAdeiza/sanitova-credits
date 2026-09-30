@@ -196,6 +196,27 @@ Two rules that script encodes, both learned the hard way: a program ID lives in
 keypair must never be funded before deploying, because an account that has
 ever received lamports can never become a program account.
 
+## A vulnerability found and fixed
+
+`release_inheritance` credited `ctx.remaining_accounts[index]` without ever comparing it to
+`vault.heirs[index]`, and `ReleaseInheritance` carries no `Signer`. The caller chose both the
+timing and the recipients, so any account could be named as a "heir" and take the entire
+payout. The `InheritancePayment` event reported the *registered* heir, so the logs would show
+a payment to the correct beneficiary that never happened.
+
+The state machine makes this reachable by design: once a heartbeat lapses and the challenge
+period elapses, the vault sits in `Release` and anyone can call the instruction.
+
+Fixed in `lib.rs` by binding each payout account to its recorded heir, and by refusing
+program-owned accounts as recipients -- crediting lamports to a token account looks like a
+payment and pays nothing, because the balance lives in its data.
+
+**The fix is compiled and present in `target/deploy/deathclock.so`, but is NOT deployed.** A
+program upgrade needs roughly 2.5 SOL and the deploy authority held 1.44; devnet airdrops
+were rate-limited throughout the attempt. Until the upgrade lands, the program at
+`C8unxtjoDZWy2GmwHUPuSve1BHT5TtRKpNaDofbMS5Vh` still carries the flaw. Do not put real value
+behind it.
+
 ## Honest limitations
 
 1. **Not audited.** The security model is reasoned, not third-party reviewed.
