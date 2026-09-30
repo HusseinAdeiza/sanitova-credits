@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { ThemeProvider, themeScript } from "@/components/ThemeProvider";
+import { WalletProvider } from "@/hooks/WalletProvider";
 import "./globals.css";
 
 /**
@@ -97,7 +98,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {/*
+            One wallet state for the whole tree. The header button and the app
+            both read the connection, and two separate hook instances made the
+            header connect a provider the app never saw -- which surfaced as
+            `s.connect is not a function` on the reconnect path.
+          */}
+          <WalletProvider>{children}</WalletProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useWallet, type WalletDescriptor, type WalletId } from "@/hooks/useWallet";
+import { useWallet } from "@/hooks/WalletProvider";
+import type { WalletDescriptor, WalletId } from "@/hooks/useWallet";
 import { useTheme } from "@/components/ThemeProvider";
 import { shorten } from "@/utils/helpers";
 import { Pill } from "@/components/ui";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useWallet } from "@/hooks/useWallet";
+import { useWallet } from "@/hooks/WalletProvider";
 import { useVault } from "@/hooks/useVault";
 import type { Heir, HeartbeatPayload, VaultSnapshot } from "@/types";
 import { FEE_BPS } from "@/utils/constants";

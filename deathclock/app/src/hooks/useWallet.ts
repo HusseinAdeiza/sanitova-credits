@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 /**
  * Multi-wallet support.
@@ -91,20 +91,37 @@ function getInjected(key: string | null): Injected | null {
   return legacy ? (legacy as Injected) : null;
 }
 
-function detect(): { id: WalletId; provider: Injected } | null {
-  if (typeof window === "undefined") return null;
+/**
+ * Lists every injected wallet, not just the first.
+ *
+ * The original `detect` returned on the first match, so a browser with Phantom
+ * and Backpack both installed reported one wallet and offered no choice. It also
+ * ran once on mount, which is too early: several wallets install their provider
+ * asynchronously after page load, so the list came back empty and the UI claimed
+ * no wallet was present.
+ */
+function detectAll(): { id: WalletId; provider: Injected }[] {
+  if (typeof window === "undefined") return [];
 
+  const found: { id: WalletId; provider: Injected }[] = [];
   for (const wallet of WALLETS) {
     const provider = getInjected(wallet.injectionKey);
-    if (provider) return { id: wallet.id, provider };
+    // Skip a key already claimed, so Phantom's own injection key and the legacy
+    // `window.solana` global do not appear as two entries.
+    if (provider && !found.some((entry) => entry.provider === provider)) {
+      found.push({ id: wallet.id, provider });
+    }
   }
 
-  // Phantom on older builds only sets window.solana.
   const legacy = getInjected(null);
-  if (legacy?.isPhantom) return { id: "phantom", provider: legacy };
-  if (legacy) return { id: "unknown", provider: legacy };
+  if (legacy && !found.some((entry) => entry.provider === legacy)) {
+    found.push({
+      id: legacy.isPhantom ? "phantom" : legacy.isSolflare ? "solflare" : "unknown",
+      provider: legacy,
+    });
+  }
 
-  return null;
+  return found;
 }
 
 export type WalletState = {
@@ -121,7 +138,7 @@ export type WalletState = {
   clearError: () => void;
 };
 
-export function useWallet(): WalletState & { signer: WalletAdapter | null } {
+export function useWalletState(): WalletState & { signer: WalletAdapter | null } {
   const [installed, setInstalled] = useState<WalletDescriptor[]>([]);
   const [activeId, setActiveId] = useState<WalletId | null>(null);
   const [provider, setProvider] = useState<Injected | null>(null);
@@ -129,34 +146,48 @@ export function useWallet(): WalletState & { signer: WalletAdapter | null } {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Detect once on mount. Wallets inject on page load, so there is nothing to
-  // poll for; the list is refreshed if the user installs one and reloads.
+  // Watch for injected wallets rather than sampling once. Providers are
+  // injected asynchronously on several wallets, so a single read on mount
+  // reported "no wallet detected" for a browser that had one installed.
   useEffect(() => {
-    const found = detect();
-    if (!found) {
-      setInstalled([]);
-      return;
-    }
-    const descriptor =
-      WALLETS.find((w) => w.id === found.id) ??
-      ({
-        id: "unknown",
-        name: "Detected wallet",
-        monogram: "DW",
-        injectionKey: null,
-        installUrl: "https://solana.com",
-        docsUrl: "https://solana.com/developers",
-        multiSign: Boolean(found.provider.signAllTransactions),
-      } satisfies WalletDescriptor);
+    let cancelled = false;
 
-    setInstalled([descriptor]);
-    setProvider(found.provider);
+    const refresh = () => {
+      if (cancelled) return;
+      const descriptors = detectAll().map((entry) => {
+        const known = WALLETS.find((w) => w.id === entry.id);
+        const base =
+          known ??
+          ({
+            id: "unknown",
+            name: "Wallet",
+            monogram: "?",
+            injectionKey: "",
+            installUrl: "",
+            docsUrl: "",
+            multiSign: true,
+          } as WalletDescriptor);
+        // Carry the live provider so connect() does not have to look it up again.
+        return { ...base, provider: entry.provider };
+      });
+      setInstalled(descriptors);
 
-    if (found.provider.isConnected && found.provider.publicKey) {
-      setActiveId(descriptor.id);
-      setPublicKey(found.provider.publicKey.toString());
-    }
-  }, []);
+      // If a wallet is already authorised, adopt it without a prompt.
+      const authorised = detectAll().find((entry) => entry.provider.isConnected);
+      if (authorised && !activeId) {
+        setProvider(authorised.provider);
+        setActiveId(authorised.id);
+        setPublicKey(authorised.provider.publicKey?.toString() ?? null);
+      }
+    };
+
+    refresh();
+    const timer = setInterval(refresh, 400);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [activeId]);
 
   // Track account switches in the active provider, including across a wallet
   // change, so the UI never shows a stale address.
@@ -175,8 +206,14 @@ export function useWallet(): WalletState & { signer: WalletAdapter | null } {
         setError("That wallet is not installed in this browser.");
         return;
       }
-      const target = getInjected(descriptor.injectionKey);
-      if (!target) {
+      // Use the provider detection found rather than re-reading `window`.
+      // If detection missed (a late injection, or a wallet that took over the
+      // key), fall back to one fresh lookup -- but never call connect() on an
+      // unknown shape, which is what produced "s.connect is not a function".
+      const target =
+        (descriptor as WalletDescriptor & { provider?: Injected }).provider ??
+        getInjected(descriptor.injectionKey);
+      if (!target || typeof target.connect !== "function") {
         setError(
           `${descriptor.name} was not detected. Reload the page after installing it.`,
         );
@@ -275,3 +312,16 @@ export type WalletAdapter = {
   signTransaction: <T>(tx: T) => Promise<T>;
   signAllTransactions: <T>(txs: T[]) => Promise<T[]>;
 };
+
+
+/* ---------------------------------------------------------------------------
+   Shared state
+
+   `useWalletState` above is a plain hook, and calling it twice gave two
+   independent copies of the connection state: the header's button connected a
+   provider the app never saw, so `connected` stayed false and the reconnect
+   path called a stale `connect`. That surfaced as "s.connect is not a function"
+   once the bundler minified the closure.
+
+   One provider at the root, one state everywhere after that.
+   ----------------------------------------------------------------------- */
